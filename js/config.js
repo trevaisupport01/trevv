@@ -7,7 +7,7 @@
  * the /exec URL. Do not use the /dev testing URL.
  */
 window.TREV_CONFIG = Object.freeze({
-  appsScriptUrl: 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+  appsScriptUrl: 'https://script.google.com/macros/s/AKfycbz_oyQWP8kZ4lWjChn0V2GDC2DzILmyMhA9scAjlp_W_2Yyb_08icF0UDPgPskfLq85zg/exec',
   supportEmail: 'trevaisupport01@gmail.com',
   supportWhatsApp: '2348139908559',
   portalUrl: 'https://trevaisupport01.github.io/Trev/portal.html',
