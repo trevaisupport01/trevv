@@ -12,6 +12,10 @@
   const resourcesContainer = document.getElementById('portalResources');
   const assignmentsContainer = document.getElementById('portalAssignments');
   const submissionsContainer = document.getElementById('portalSubmissions');
+  const communityContainer = document.getElementById('portalCommunity');
+  const onboardingContainer = document.getElementById('portalOnboarding');
+  const timetableContainer = document.getElementById('portalTimetable');
+  const guidelinesContainer = document.getElementById('portalGuidelines');
   const logoutButton = document.getElementById('portalLogout');
   const assignmentModal = document.getElementById('assignmentUploadModal');
   const assignmentFrame = document.getElementById('assignmentUploadFrame');
@@ -238,6 +242,24 @@
         createElement('p', '', assignment.instructions || 'Upload your completed work for instructor review.')
       );
 
+      if (assignment.guidelines) {
+        const details = createElement('details', 'assignment-guidelines');
+        details.append(
+          createElement('summary', '', 'Assignment Guidelines'),
+          createElement('div', 'assignment-guidelines-text', assignment.guidelines)
+        );
+        card.appendChild(details);
+      }
+
+      if (assignment.gradingRubric) {
+        const rubric = createElement('details', 'assignment-guidelines');
+        rubric.append(
+          createElement('summary', '', 'Grading Rubric'),
+          createElement('div', 'assignment-guidelines-text', assignment.gradingRubric)
+        );
+        card.appendChild(rubric);
+      }
+
       const meta = createElement('div', 'assignment-meta');
       meta.append(
         createElement('span', '', `Files: ${assignment.acceptedFiles || 'PDF or document'}`),
@@ -293,15 +315,163 @@
     });
   };
 
+
+  const renderCommunity = (community, cohort) => {
+    communityContainer.replaceChildren();
+    const card = createElement('article', 'community-card');
+    const top = createElement('div', 'community-card-top');
+    const titleWrap = createElement('div');
+    titleWrap.append(
+      createElement('span', 'community-label', 'OFFICIAL WHATSAPP COMMUNITY'),
+      createElement('h3', '', community?.groupName || 'TREV AI Community')
+    );
+    top.appendChild(titleWrap);
+
+    if (community?.inviteUrl && validResourceUrl(community.inviteUrl)) {
+      const join = createElement('a', 'btn btn-secondary btn-sm', 'Join Community');
+      join.href = community.inviteUrl;
+      join.target = '_blank';
+      join.rel = 'noopener noreferrer';
+      top.appendChild(join);
+    } else {
+      top.appendChild(createElement('span', 'community-link-pending', 'Invite link pending'));
+    }
+    card.appendChild(top);
+
+    const facts = createElement('div', 'community-facts');
+    [
+      ['Support hours', community?.supportHours || 'See WhatsApp group'],
+      ['Class time', cohort?.classTime || 'To be announced after onboarding'],
+      ['Class links', community?.classLinkPolicy || 'Shared in WhatsApp before class'],
+      ['Recording', community?.recordingPolicy || 'Students are informed before recording begins'],
+      ['Private messages', community?.privateMessagePolicy || 'Only for payment and account issues']
+    ].forEach(([label, value]) => {
+      const item = createElement('div');
+      item.append(createElement('span', '', label), createElement('strong', '', value));
+      facts.appendChild(item);
+    });
+    card.appendChild(facts);
+    communityContainer.appendChild(card);
+  };
+
+  const renderOnboarding = (items, registrationId) => {
+    onboardingContainer.replaceChildren();
+    if (!Array.isArray(items) || items.length === 0) {
+      onboardingContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Your checklist is being prepared.'));
+      return;
+    }
+    const storageKey = `trevOnboarding:${registrationId}`;
+    let completed = [];
+    try { completed = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch (_) { completed = []; }
+    const list = createElement('div', 'onboarding-list');
+
+    items.forEach((item, index) => {
+      const itemKey = `${item.accessLevel || 'ALL'}:${item.sortOrder || index}:${item.item}`;
+      const label = createElement('label', 'onboarding-item');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = completed.includes(itemKey);
+      const copy = createElement('span', 'onboarding-copy');
+      copy.append(
+        createElement('strong', '', item.item),
+        createElement('small', '', item.description || '')
+      );
+      label.append(checkbox, copy);
+      label.classList.toggle('completed', checkbox.checked);
+      checkbox.addEventListener('change', () => {
+        const set = new Set(completed);
+        if (checkbox.checked) set.add(itemKey); else set.delete(itemKey);
+        completed = Array.from(set);
+        localStorage.setItem(storageKey, JSON.stringify(completed));
+        label.classList.toggle('completed', checkbox.checked);
+        updateProgress();
+      });
+      list.appendChild(label);
+    });
+
+    const progress = createElement('div', 'onboarding-progress');
+    const bar = createElement('div', 'onboarding-progress-bar');
+    const fill = createElement('span');
+    bar.appendChild(fill);
+    const text = createElement('strong');
+    progress.append(text, bar);
+    const updateProgress = () => {
+      const done = list.querySelectorAll('input:checked').length;
+      const total = items.length;
+      text.textContent = `${done} of ${total} onboarding steps completed`;
+      fill.style.width = `${Math.round((done / total) * 100)}%`;
+    };
+    onboardingContainer.append(progress, list);
+    updateProgress();
+  };
+
+  const renderTimetable = (timetable, cohort) => {
+    timetableContainer.replaceChildren();
+    if (!Array.isArray(timetable) || timetable.length === 0) {
+      timetableContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Your timetable is being prepared.'));
+      return;
+    }
+    const summary = createElement('div', 'timetable-summary');
+    [
+      ['Cohort begins', cohort?.startDate || '4 August 2026'],
+      ['Class duration', cohort?.duration || '90 minutes'],
+      ['Capstone deadline', cohort?.capstoneDeadline || '29 August 2026'],
+      ['Certificate release', cohort?.certificateRelease || '31 August 2026']
+    ].forEach(([label, value]) => {
+      const item = createElement('div');
+      item.append(createElement('span', '', label), createElement('strong', '', value));
+      summary.appendChild(item);
+    });
+    timetableContainer.appendChild(summary);
+
+    const list = createElement('div', 'timetable-list');
+    timetable.forEach((entry) => {
+      const row = createElement('article', 'timetable-row');
+      const date = createElement('div', 'timetable-date');
+      date.append(createElement('strong', '', entry.date || ''), createElement('span', '', entry.day || ''));
+      const detail = createElement('div', 'timetable-detail');
+      detail.append(
+        createElement('span', 'timetable-session', `${entry.session || 'Session'} · ${entry.activityType || 'Class'}`),
+        createElement('h3', '', entry.title || 'Class Session'),
+        createElement('p', '', `${entry.classTime || 'Time TBA'} · ${entry.duration || '90 minutes'}`)
+      );
+      const status = createElement('span', 'timetable-status', entry.status || 'UPCOMING');
+      row.append(date, detail, status);
+      list.appendChild(row);
+    });
+    timetableContainer.appendChild(list);
+  };
+
+  const renderGuidelines = (guidelines) => {
+    guidelinesContainer.replaceChildren();
+    if (!Array.isArray(guidelines) || guidelines.length === 0) {
+      guidelinesContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Community guidelines are being prepared.'));
+      return;
+    }
+    guidelines.forEach((rule, index) => {
+      const card = createElement('article', 'guideline-card');
+      card.append(
+        createElement('span', 'guideline-number', String(index + 1).padStart(2, '0')),
+        createElement('h3', '', rule.title || 'Community rule'),
+        createElement('p', '', rule.guideline || '')
+      );
+      guidelinesContainer.appendChild(card);
+    });
+  };
+
   const renderDashboard = (response, code, options = {}) => {
     currentAccessCode = code;
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
     document.getElementById('studentRegistrationId').textContent = response.student.registrationId || '—';
     document.getElementById('studentPackage').textContent = response.package.label || response.package.key || 'Enrolled Package';
     document.getElementById('studentPackageBadge').textContent = response.package.accessLevel || response.package.key || 'STUDENT';
+    renderCommunity(response.community || {}, response.cohort || {});
+    renderOnboarding(response.onboarding || [], response.student.registrationId || 'student');
+    renderTimetable(response.timetable || [], response.cohort || {});
     renderResources(response.resources);
     renderAssignments(response.assignments, response.submissions);
     renderSubmissions(response.submissions);
+    renderGuidelines(response.communityGuidelines || []);
 
     if (rememberInput.checked) localStorage.setItem(STORAGE_KEY, code);
     else localStorage.removeItem(STORAGE_KEY);

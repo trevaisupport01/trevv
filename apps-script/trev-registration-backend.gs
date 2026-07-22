@@ -21,8 +21,17 @@ var TREV = {
   RESOURCES_SHEET: 'Resources',
   ASSIGNMENTS_SHEET: 'Assignments',
   SUBMISSIONS_SHEET: 'Assignment Submissions',
+  TIMETABLE_SHEET: 'Timetable',
+  CHECKLIST_SHEET: 'Onboarding Checklist',
+  GUIDELINES_SHEET: 'Community Guidelines',
+  SETTINGS_SHEET: 'Portal Settings',
+  CERTIFICATES_SHEET: 'Certificates',
   UPLOAD_ROOT_FOLDER: 'TREV AI Assignment Uploads',
   MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
+  COHORT_START: '2026-08-04',
+  CAPSTONE_DEADLINE: '2026-08-29',
+  CERTIFICATE_RELEASE: '2026-08-31',
+  CLASS_DURATION_MINUTES: 90,
   TIMEZONE: 'Africa/Lagos'
 };
 
@@ -62,11 +71,58 @@ var ASSIGNMENT_HEADERS = [
   'Access Level',
   'Title',
   'Instructions',
+  'Guidelines',
+  'Grading Rubric',
   'Due Date',
   'Accepted Files',
   'Max Size MB',
   'Visible',
   'Sort Order'
+];
+
+var TIMETABLE_HEADERS = [
+  'Date',
+  'Day',
+  'Access Level',
+  'Session',
+  'Session Title',
+  'Activity Type',
+  'Duration',
+  'Class Time',
+  'Status',
+  'Portal Note'
+];
+
+var CHECKLIST_HEADERS = [
+  'Access Level',
+  'Sort Order',
+  'Item',
+  'Description',
+  'Required',
+  'Visible'
+];
+
+var GUIDELINE_HEADERS = [
+  'Rule ID',
+  'Title',
+  'Guideline',
+  'Visible',
+  'Sort Order'
+];
+
+var SETTING_HEADERS = ['Key', 'Value', 'Notes'];
+
+var CERTIFICATE_HEADERS = [
+  'Certificate ID',
+  'Student Name',
+  'Registration ID',
+  'Package Key',
+  'Package',
+  'Attendance %',
+  'Capstone Status',
+  'Issue Date',
+  'Status',
+  'PDF URL'
 ];
 
 var SUBMISSION_HEADERS = [
@@ -157,15 +213,31 @@ function setupTrevSystem() {
 
   var registrations = getOrCreateSheet_(ss, TREV.REGISTRATIONS_SHEET, REG_HEADERS);
   var resources = getOrCreateSheet_(ss, TREV.RESOURCES_SHEET, RESOURCE_HEADERS);
-  var assignments = getOrCreateSheet_(ss, TREV.ASSIGNMENTS_SHEET, ASSIGNMENT_HEADERS);
+  var assignments = getOrUpgradeAssignmentsSheet_(ss);
   var submissions = getOrCreateSheet_(ss, TREV.SUBMISSIONS_SHEET, SUBMISSION_HEADERS);
+  var timetable = getOrCreateSheet_(ss, TREV.TIMETABLE_SHEET, TIMETABLE_HEADERS);
+  var checklist = getOrCreateSheet_(ss, TREV.CHECKLIST_SHEET, CHECKLIST_HEADERS);
+  var guidelines = getOrCreateSheet_(ss, TREV.GUIDELINES_SHEET, GUIDELINE_HEADERS);
+  var settings = getOrCreateSheet_(ss, TREV.SETTINGS_SHEET, SETTING_HEADERS);
+  var certificates = getOrCreateSheet_(ss, TREV.CERTIFICATES_SHEET, CERTIFICATE_HEADERS);
 
   formatRegistrationsSheet_(registrations);
   formatResourcesSheet_(resources);
   formatAssignmentsSheet_(assignments);
   formatSubmissionsSheet_(submissions);
+  formatTimetableSheet_(timetable);
+  formatChecklistSheet_(checklist);
+  formatGuidelinesSheet_(guidelines);
+  formatSettingsSheet_(settings);
+  formatCertificatesSheet_(certificates);
   addStarterResourceRows_(resources);
+  upsertProvidedResource_(resources);
   addStarterAssignmentRows_(assignments);
+  upsertProvidedAssignment_(assignments);
+  addTimetableRows_(timetable);
+  addChecklistRows_(checklist);
+  addGuidelineRows_(guidelines);
+  addSettingRows_(settings);
   getUploadRootFolder_();
 
   SpreadsheetApp.flush();
@@ -208,6 +280,8 @@ function doGet(e) {
       payload = { ok: true, service: 'TREV AI Student Portal' };
     } else if (action === 'verify') {
       payload = verifyAccessCode_(parameters.code);
+    } else if (action === 'verifycertificate') {
+      payload = verifyCertificate_(parameters.certificateId);
     } else {
       payload = { valid: false, error: 'Unsupported action.' };
     }
@@ -442,7 +516,18 @@ function verifyAccessCode_(rawCode) {
     },
     resources: getResourcesForLevel_(packageInfo.accessLevel),
     assignments: getAssignmentsForLevel_(packageInfo.accessLevel),
-    submissions: getSubmissionsForRegistration_(registrationId)
+    submissions: getSubmissionsForRegistration_(registrationId),
+    timetable: getTimetableForLevel_(packageInfo.accessLevel),
+    onboarding: getChecklistForLevel_(packageInfo.accessLevel),
+    communityGuidelines: getCommunityGuidelines_(),
+    community: getCommunityInfo_(packageInfo.accessLevel),
+    cohort: {
+      startDate: settingValue_('COHORT_START_DATE', '4 August 2026'),
+      classTime: settingValue_('CLASS_TIME', 'To be announced after onboarding'),
+      duration: settingValue_('CLASS_DURATION', '90 minutes'),
+      capstoneDeadline: settingValue_('CAPSTONE_DEADLINE', '29 August 2026'),
+      certificateRelease: settingValue_('CERTIFICATE_RELEASE', '31 August 2026')
+    }
   };
 }
 
@@ -499,25 +584,27 @@ function getAssignmentsForLevel_(accessLevel) {
   rows.forEach(function(row) {
     var id = clean_(row[0], 60).toUpperCase();
     var level = clean_(row[1], 30).toUpperCase();
-    var visible = row[7] === true || String(row[7]).toUpperCase() === 'TRUE';
+    var visible = row[9] === true || String(row[9]).toUpperCase() === 'TRUE';
     if (!id || allowed.indexOf(level) === -1 || !visible || !clean_(row[2], 150)) return;
 
     var dueDate = '';
-    if (row[4] instanceof Date && !isNaN(row[4].getTime())) {
-      dueDate = Utilities.formatDate(row[4], TREV.TIMEZONE, 'MMM d, yyyy');
+    if (row[6] instanceof Date && !isNaN(row[6].getTime())) {
+      dueDate = Utilities.formatDate(row[6], TREV.TIMEZONE, 'MMM d, yyyy');
     } else {
-      dueDate = clean_(row[4], 60);
+      dueDate = clean_(row[6], 60);
     }
 
     assignments.push({
       id: id,
       accessLevel: level,
       title: clean_(row[2], 150),
-      instructions: clean_(row[3], 1000),
+      instructions: clean_(row[3], 1500),
+      guidelines: clean_(row[4], 5000),
+      gradingRubric: clean_(row[5], 5000),
       dueDate: dueDate,
-      acceptedFiles: clean_(row[5], 120) || '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png',
-      maxSizeMb: Math.min(Math.max(Number(row[6] || 10), 1), 10),
-      sortOrder: Number(row[8] || 999)
+      acceptedFiles: clean_(row[7], 120) || '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png',
+      maxSizeMb: Math.min(Math.max(Number(row[8] || 10), 1), 10),
+      sortOrder: Number(row[10] || 999)
     });
   });
 
@@ -574,6 +661,8 @@ function renderAssignmentUploadPage_(rawCode, rawAssignmentId) {
       '<main><div class="eyebrow">SECURE SUBMISSION</div><h1>' + escapeHtml_(assignment.title) + '</h1>' +
       '<p class="instructions">' + escapeHtml_(assignment.instructions || 'Upload your completed assignment below.') + '</p>' +
       (assignment.dueDate ? '<div class="due">Due: <strong>' + escapeHtml_(assignment.dueDate) + '</strong></div>' : '') +
+      (assignment.guidelines ? '<details open><summary>Assignment Guidelines</summary><div class="multiline">' + escapeHtml_(assignment.guidelines) + '</div></details>' : '') +
+      (assignment.gradingRubric ? '<details><summary>Grading Rubric</summary><div class="multiline">' + escapeHtml_(assignment.gradingRubric) + '</div></details>' : '') +
       '<form id="uploadForm" onsubmit="submitForm(event,this)">' +
       '<input type="hidden" name="accessCode" value="' + escapeHtml_(code) + '">' +
       '<input type="hidden" name="assignmentId" value="' + escapeHtml_(assignment.id) + '">' +
@@ -787,6 +876,7 @@ function uploadPageCss_() {
     'main{max-width:620px;margin:0 auto;padding:28px 22px}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.09em;margin-bottom:10px}' +
     'h1{font-size:28px;line-height:1.18;margin:0 0 12px}.instructions{color:#666;line-height:1.6;margin-bottom:15px}.due{display:inline-block;background:#fff4c4;border:1px solid #f2b705;border-radius:999px;padding:7px 12px;font-size:12px;margin-bottom:22px}' +
     'form{display:grid;gap:13px;background:#fff;border:1px solid #ddd;border-radius:12px;padding:22px}label{font-weight:700;font-size:13px}label span{font-weight:400;color:#777}' +
+    'details{margin:12px 0;border:1px solid #ddd;border-radius:9px;background:#fff;overflow:hidden}summary{cursor:pointer;padding:12px 14px;font-weight:800;font-size:13px;background:#f5f5f2}.multiline{padding:14px;white-space:pre-line;color:#444;line-height:1.6;font-size:13px}' +
     'input[type=file],textarea{width:100%;border:1px solid #ccc;border-radius:8px;padding:12px;background:#fafafa;font:inherit}textarea{resize:vertical}small{color:#777;line-height:1.4}' +
     'button{min-height:48px;border:0;border-radius:999px;background:#111;color:#fff;font-weight:800;cursor:pointer;padding:12px 18px}button:disabled{opacity:.65;cursor:wait}' +
     '#status:empty{display:none}#status{padding:11px;border-radius:7px;font-size:13px;line-height:1.4}.working{background:#f5f5f5}.success{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}' +
@@ -824,6 +914,22 @@ function getOrCreateSheet_(ss, name, headers) {
   var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   var existing = sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0];
   if (existing.join('|') !== headers.join('|')) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return sheet;
+}
+
+/** Preserves existing assignment data while adding Guidelines and Grading Rubric. */
+function getOrUpgradeAssignmentsSheet_(ss) {
+  var sheet = ss.getSheetByName(TREV.ASSIGNMENTS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(TREV.ASSIGNMENTS_SHEET);
+    sheet.getRange(1, 1, 1, ASSIGNMENT_HEADERS.length).setValues([ASSIGNMENT_HEADERS]);
+    return sheet;
+  }
+
+  var oldHeaders = sheet.getRange(1, 1, 1, Math.min(sheet.getLastColumn(), 9)).getDisplayValues()[0];
+  var oldSignature = ['Assignment ID','Access Level','Title','Instructions','Due Date','Accepted Files','Max Size MB','Visible','Sort Order'].join('|');
+  if (oldHeaders.join('|') === oldSignature) sheet.insertColumnsAfter(4, 2);
+  sheet.getRange(1, 1, 1, ASSIGNMENT_HEADERS.length).setValues([ASSIGNMENT_HEADERS]);
   return sheet;
 }
 
@@ -891,10 +997,13 @@ function formatAssignmentsSheet_(sheet) {
   sheet.setColumnWidth(1, 160);
   sheet.setColumnWidth(2, 130);
   sheet.setColumnWidth(3, 230);
-  sheet.setColumnWidth(4, 420);
-  sheet.setColumnWidth(5, 120);
-  sheet.setColumnWidth(6, 250);
-  sheet.getRange(2, 8, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
+  sheet.setColumnWidth(4, 360);
+  sheet.setColumnWidth(5, 430);
+  sheet.setColumnWidth(6, 430);
+  sheet.setColumnWidth(7, 120);
+  sheet.setColumnWidth(8, 250);
+  sheet.setColumnWidth(9, 110);
+  sheet.getRange(2, 10, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
   sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
       .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
@@ -930,11 +1039,271 @@ function formatSubmissionsSheet_(sheet) {
 function addStarterAssignmentRows_(sheet) {
   if (sheet.getLastRow() > 1) return;
   sheet.getRange(2, 1, 4, ASSIGNMENT_HEADERS.length).setValues([
-    ['GENERAL-PRACTICE', 'ALL', 'AI Workflow Practice', 'Upload a short document showing one practical workflow you completed with an AI tool.', '', '.pdf,.doc,.docx', 10, true, 1],
-    ['STARTER-CAPSTONE', 'STARTER', 'Starter Capstone Project', 'Submit your completed Starter capstone using the assignment brief provided in your learning materials.', '', '.pdf,.doc,.docx,.ppt,.pptx,.zip', 10, true, 10],
-    ['PRO-CAPSTONE', 'PROFESSIONAL', 'Professional Capstone Project', 'Submit your complete professional workflow, supporting documentation, and any relevant output files.', '', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 20],
-    ['VIP-PROJECT', 'VIP', 'VIP Executive Project', 'Submit your strategy, automation audit, or team implementation project for review.', '', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 30]
+    ['GENERAL-PRACTICE', 'ALL', 'AI Workflow Practice', 'Upload a short document showing one practical workflow you completed with an AI tool.', 'Follow the task instructions, label your work clearly, and upload one final version.', 'Complete / Revision Required / Approved', '', '.pdf,.doc,.docx', 10, true, 1],
+    ['STARTER-CAPSTONE', 'STARTER', 'Starter Capstone Project', 'Submit your completed Starter capstone using the assignment brief provided in your learning materials.', 'Use the Starter manual and demonstrate the prompt framework taught in class.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.zip', 10, true, 10],
+    ['PRO-CAPSTONE', 'PROFESSIONAL', 'Professional Capstone Project', 'Submit your complete professional workflow, supporting documentation, and any relevant output files.', 'Document your process, tools, prompts, outputs, and responsible-AI checks.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 20],
+    ['VIP-PROJECT', 'VIP', 'VIP Executive Project', 'Submit your strategy, automation audit, or team implementation project for review.', 'Present the business objective, implementation workflow, expected value, and governance considerations.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 30]
   ]);
+}
+
+
+function upsertProvidedResource_(sheet) {
+  var title = 'Sample Course Material';
+  var values = ['ALL', 'Course Materials', title, 'A test learning material for verifying direct downloads in the student portal.', 'https://drive.google.com/file/d/1jPuZ3fZ5k08hjQso1v3cEa832KqnupbD/view?usp=drive_link', 'Download Material', true, 2];
+  var rowNumber = findExactRow_(sheet, 3, title);
+  if (rowNumber) sheet.getRange(rowNumber, 1, 1, RESOURCE_HEADERS.length).setValues([values]);
+  else sheet.appendRow(values);
+}
+
+function upsertProvidedAssignment_(sheet) {
+  var assignmentId = 'AI-EDUCATION-ESSAY';
+  var instructions = 'Write an expository essay explaining the advantages and disadvantages of using Artificial Intelligence in education. Clearly inform the reader about how AI is affecting student learning and teaching methods.';
+  var guidelines = [
+    'INTRODUCTION & THESIS',
+    'Keep the introduction short and focused. Avoid overly broad openings such as “Throughout history…”. End with a clear thesis that can be supported with specific evidence.',
+    '',
+    'BODY PARAGRAPHS',
+    'Develop one main point in each supporting paragraph and begin each paragraph with a clear topic sentence.',
+    '',
+    'EVIDENCE',
+    'Support every major point with specific examples or evidence. Explain how each example supports the overall argument rather than inserting evidence without analysis.',
+    '',
+    'STYLE & GRAMMAR',
+    'Use formal, precise language and favour active voice. Check carefully for run-on sentences, fragments, and incomplete sentences.',
+    '',
+    'PRESENTATION',
+    'Submit a highly legible final draft. It may be neatly written in ink and scanned, or computer-generated.'
+  ].join('\n');
+  var rubric = [
+    'TOTAL: 45 POINTS',
+    '',
+    'Content — 10 points',
+    '• Accurate, factual information — 5 points',
+    '• Focuses consistently on the assigned topic — 5 points',
+    '',
+    'Organization — 15 points',
+    '• Clear beginning, middle, and end — 5 points',
+    '• Clear main idea in each paragraph — 5 points',
+    '• Evidence arranged logically — 5 points',
+    '',
+    'Conventions — 5 points',
+    '• Very few grammatical or mechanical errors — 5 points',
+    '',
+    'Voice — 5 points',
+    '• Engaging, appropriate, and persuasive voice — 5 points',
+    '',
+    'Presentation — 10 points',
+    '• Final draft is highly legible — 5 points',
+    '• Neatly written in ink or computer-generated — 5 points'
+  ].join('\n');
+  var values = [assignmentId, 'ALL', 'Expository Essay: The Impact of Artificial Intelligence in Education', instructions, guidelines, rubric, '29 August 2026', '.pdf,.doc,.docx,.jpg,.jpeg,.png', 10, true, 5];
+  var rowNumber = findExactRow_(sheet, 1, assignmentId);
+  if (rowNumber) sheet.getRange(rowNumber, 1, 1, ASSIGNMENT_HEADERS.length).setValues([values]);
+  else sheet.appendRow(values);
+}
+
+function formatTimetableSheet_(sheet) {
+  styleAdminHeader_(sheet, TIMETABLE_HEADERS.length, '#111111', '#ffffff');
+  sheet.setColumnWidth(1, 120); sheet.setColumnWidth(2, 110); sheet.setColumnWidth(3, 130);
+  sheet.setColumnWidth(4, 100); sheet.setColumnWidth(5, 260); sheet.setColumnWidth(6, 140);
+  sheet.setColumnWidth(7, 110); sheet.setColumnWidth(8, 210); sheet.setColumnWidth(9, 110); sheet.setColumnWidth(10, 340);
+}
+
+function formatChecklistSheet_(sheet) {
+  styleAdminHeader_(sheet, CHECKLIST_HEADERS.length, '#f2b705', '#111111');
+  sheet.setColumnWidth(1, 140); sheet.setColumnWidth(2, 100); sheet.setColumnWidth(3, 250); sheet.setColumnWidth(4, 420);
+  sheet.getRange(2, 5, Math.max(sheet.getMaxRows() - 1, 1), 2).insertCheckboxes();
+}
+
+function formatGuidelinesSheet_(sheet) {
+  styleAdminHeader_(sheet, GUIDELINE_HEADERS.length, '#111111', '#ffffff');
+  sheet.setColumnWidth(1, 100); sheet.setColumnWidth(2, 250); sheet.setColumnWidth(3, 500);
+  sheet.getRange(2, 4, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
+}
+
+function formatSettingsSheet_(sheet) {
+  styleAdminHeader_(sheet, SETTING_HEADERS.length, '#f2b705', '#111111');
+  sheet.setColumnWidth(1, 250); sheet.setColumnWidth(2, 360); sheet.setColumnWidth(3, 460);
+}
+
+function formatCertificatesSheet_(sheet) {
+  styleAdminHeader_(sheet, CERTIFICATE_HEADERS.length, '#111111', '#ffffff');
+  sheet.setColumnWidth(1, 190); sheet.setColumnWidth(2, 220); sheet.setColumnWidth(3, 180);
+  sheet.setColumnWidth(5, 220); sheet.setColumnWidth(10, 300);
+}
+
+function styleAdminHeader_(sheet, length, background, color) {
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, length).setBackground(background).setFontColor(color).setFontWeight('bold');
+}
+
+function addTimetableRows_(sheet) {
+  if (sheet.getLastRow() > 1) return;
+  var time = 'To be announced after onboarding';
+  var note = 'The secure class link will be shared in the official WhatsApp group 30–60 minutes before class.';
+  var rows = [
+    ['4 Aug 2026','Tuesday','STARTER','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
+    ['5 Aug 2026','Wednesday','PROFESSIONAL','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
+    ['6 Aug 2026','Thursday','VIP','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
+    ['7 Aug 2026','Friday','STARTER','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
+    ['8 Aug 2026','Saturday','PROFESSIONAL','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
+    ['9 Aug 2026','Sunday','VIP','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
+    ['10 Aug 2026','Monday','STARTER','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
+    ['11 Aug 2026','Tuesday','PROFESSIONAL','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
+    ['12 Aug 2026','Wednesday','VIP','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
+    ['13 Aug 2026','Thursday','STARTER','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
+    ['14 Aug 2026','Friday','PROFESSIONAL','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
+    ['15 Aug 2026','Saturday','VIP','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
+    ['16 Aug 2026','Sunday','STARTER','Support','Starter Capstone Support','Support Clinic','90 minutes',time,'UPCOMING',note],
+    ['17 Aug 2026','Monday','PROFESSIONAL','Session 5','Creating with AI','Core Class','90 minutes',time,'UPCOMING',note],
+    ['18 Aug 2026','Tuesday','VIP','Session 5','Creating with AI','Core Class','90 minutes',time,'UPCOMING',note],
+    ['19 Aug 2026','Wednesday','STARTER','Review','Assignment Review & Certificate Readiness','Support Clinic','90 minutes',time,'UPCOMING',note],
+    ['20 Aug 2026','Thursday','PROFESSIONAL','Session 6','Chaining Tools & Ethics','Core Class','90 minutes',time,'UPCOMING',note],
+    ['21 Aug 2026','Friday','VIP','Session 6','Chaining Tools & Ethics','Core Class','90 minutes',time,'UPCOMING',note],
+    ['22 Aug 2026','Saturday','ALL','Support','Open Capstone Clinic','Support Clinic','90 minutes',time,'UPCOMING',note],
+    ['23 Aug 2026','Sunday','PROFESSIONAL','Session 7','Final Presentations','Final Session','90 minutes',time,'UPCOMING',note],
+    ['24 Aug 2026','Monday','VIP','Session 7','Final Presentations','Final Session','90 minutes',time,'UPCOMING',note]
+  ];
+  sheet.getRange(2, 1, rows.length, TIMETABLE_HEADERS.length).setValues(rows);
+}
+
+function addChecklistRows_(sheet) {
+  if (sheet.getLastRow() > 1) return;
+  var rows = [
+    ['ALL',1,'Save your personal access code','Keep it private and do not save it on a shared device.',true,true],
+    ['ALL',2,'Log into the student portal','Confirm your package, registration ID, timetable, resources, and assignments.',true,true],
+    ['ALL',3,'Join your official WhatsApp community','Use the package-specific invitation shown after approval.',true,true],
+    ['ALL',4,'Read the community guidelines','Review the conduct, privacy, recording, and material-sharing rules.',true,true],
+    ['ALL',5,'Review the timetable','Class time will be confirmed after onboarding; links appear only in WhatsApp.',true,true],
+    ['ALL',6,'Test your learning setup','Confirm your internet connection, browser, audio, and device are ready.',true,true],
+    ['STARTER',10,'Create a ChatGPT account','Free or paid access is acceptable.',true,true],
+    ['STARTER',11,'Create a Claude account','Free or paid access is acceptable.',true,true],
+    ['STARTER',12,'Create a Google Gemini account','Free or paid access is acceptable.',true,true],
+    ['STARTER',13,'Create a NotebookLM account','Use the Google account you will use during class.',true,true],
+    ['PROFESSIONAL',20,'Create all required AI and productivity accounts','ChatGPT, Claude, Gemini, NotebookLM, Google AI Studio, Canva, Google Drive, Zoom or Google Meet, and Make or Zapier.',true,true],
+    ['VIP',20,'Create all required AI and productivity accounts','ChatGPT, Claude, Gemini, NotebookLM, Google AI Studio, Canva, Google Drive, Zoom or Google Meet, and Make or Zapier.',true,true]
+  ];
+  sheet.getRange(2, 1, rows.length, CHECKLIST_HEADERS.length).setValues(rows);
+}
+
+function addGuidelineRows_(sheet) {
+  if (sheet.getLastRow() > 1) return;
+  var rows = [
+    ['G01','Respectful communication','No harassment, disrespect, discrimination, threats, or disruptive behaviour.',true,1],
+    ['G02','No spam or unrelated promotion','Do not post unrelated advertisements, schemes, referral links, or repetitive promotional messages.',true,2],
+    ['G03','No unsolicited private messaging','Private messages are permitted only for payment and account issues unless the recipient gives permission.',true,3],
+    ['G04','Keep portal codes private','Access codes belong to approved learners and must not be shared.',true,4],
+    ['G05','Protect TREV materials','Do not redistribute, resell, or publicly upload manuals, recordings, slides, templates, or portal files.',true,5],
+    ['G06','Respect student privacy','Do not share student phone numbers, screenshots, work, messages, or personal information without consent.',true,6],
+    ['G07','Academic integrity','Assignments must represent the student’s own learning process. AI support is allowed where instructed, but copying another learner’s work is prohibited.',true,7],
+    ['G08','Do not share recordings','Class recordings are for approved students and must not be redistributed.',true,8],
+    ['G09','Use support correctly','Payment and account problems should be sent through the official support WhatsApp link during package support hours.',true,9],
+    ['G10','Enforcement','Repeated or serious violations may result in warnings, community removal, or portal suspension.',true,10]
+  ];
+  sheet.getRange(2, 1, rows.length, GUIDELINE_HEADERS.length).setValues(rows);
+}
+
+function addSettingRows_(sheet) {
+  if (sheet.getLastRow() > 1) return;
+  var rows = [
+    ['COHORT_START_DATE','4 August 2026','First day of the rotating cohort timetable.'],
+    ['CLASS_TIME','To be announced after onboarding','Update once the final daily time is fixed.'],
+    ['CLASS_DURATION','90 minutes','Applies to core classes and support clinics.'],
+    ['CAPSTONE_DEADLINE','29 August 2026','Final capstone submission deadline.'],
+    ['CERTIFICATE_RELEASE','31 August 2026','Target certificate release date.'],
+    ['PAYMENT_VERIFICATION_TIME','5 minutes to 1 hour','Normal manual-transfer verification window.'],
+    ['CLASS_LINK_POLICY','Shared in WhatsApp 30–60 minutes before class','Class links are intentionally not displayed in the portal.'],
+    ['RECORDING_POLICY','Students are informed before recording begins','Recordings must not be redistributed.'],
+    ['PRIVATE_MESSAGE_POLICY','Only for payment and account issues','Other questions should use the official group.'],
+    ['STARTER_GROUP_NAME','TrevAI Starters','Official Starter community.'],
+    ['STARTER_GROUP_LINK','','Paste the Starter WhatsApp invitation link here.'],
+    ['STARTER_SUPPORT_HOURS','Monday–Friday, 11:00 AM–5:00 PM WAT',''],
+    ['PROFESSIONAL_GROUP_NAME','TrevAI Professionals','Official Professional community.'],
+    ['PROFESSIONAL_GROUP_LINK','','Paste the Professional WhatsApp invitation link here.'],
+    ['PROFESSIONAL_SUPPORT_HOURS','Monday–Friday, 10:00 AM–5:00 PM WAT',''],
+    ['VIP_GROUP_NAME','TrevAI Executives','Official VIP community.'],
+    ['VIP_GROUP_LINK','','Paste the VIP WhatsApp invitation link here.'],
+    ['VIP_SUPPORT_HOURS','Monday–Saturday, 9:00 AM–6:00 PM WAT',''],
+    ['WRONG_PAYMENT_AMOUNT','The incorrect payment will be refunded after verification.',''],
+    ['PAYMENT_NAME_MISMATCH','The student must contact support to confirm the transfer and verify identification.','']
+  ];
+  sheet.getRange(2, 1, rows.length, SETTING_HEADERS.length).setValues(rows);
+}
+
+function getTimetableForLevel_(accessLevel) {
+  var sheet = getSpreadsheet_().getSheetByName(TREV.TIMETABLE_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, TIMETABLE_HEADERS.length).getValues();
+  return rows.filter(function(row) {
+    var level = clean_(row[2], 30).toUpperCase();
+    return level === 'ALL' || level === accessLevel;
+  }).map(function(row) {
+    return {
+      date: clean_(row[0], 80), day: clean_(row[1], 30), accessLevel: clean_(row[2], 30),
+      session: clean_(row[3], 50), title: clean_(row[4], 160), activityType: clean_(row[5], 80),
+      duration: clean_(row[6], 50), classTime: clean_(row[7], 100), status: clean_(row[8], 40), note: clean_(row[9], 500)
+    };
+  });
+}
+
+function getChecklistForLevel_(accessLevel) {
+  var sheet = getSpreadsheet_().getSheetByName(TREV.CHECKLIST_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, CHECKLIST_HEADERS.length).getValues();
+  return rows.filter(function(row) {
+    var level = clean_(row[0], 30).toUpperCase();
+    var visible = row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
+    return visible && (level === 'ALL' || level === accessLevel);
+  }).map(function(row) {
+    return { accessLevel: clean_(row[0],30), sortOrder:Number(row[1]||999), item:clean_(row[2],160), description:clean_(row[3],500), required:row[4]===true||String(row[4]).toUpperCase()==='TRUE' };
+  }).sort(function(a,b){return a.sortOrder-b.sortOrder;});
+}
+
+function getCommunityGuidelines_() {
+  var sheet = getSpreadsheet_().getSheetByName(TREV.GUIDELINES_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2,1,sheet.getLastRow()-1,GUIDELINE_HEADERS.length).getValues().filter(function(row){
+    return row[3]===true||String(row[3]).toUpperCase()==='TRUE';
+  }).map(function(row){
+    return { id:clean_(row[0],30), title:clean_(row[1],160), guideline:clean_(row[2],800), sortOrder:Number(row[4]||999) };
+  }).sort(function(a,b){return a.sortOrder-b.sortOrder;});
+}
+
+function settingValue_(key, fallback) {
+  var sheet = getSpreadsheet_().getSheetByName(TREV.SETTINGS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return fallback || '';
+  var rowNumber = findExactRow_(sheet, 1, key);
+  return rowNumber ? clean_(sheet.getRange(rowNumber,2).getDisplayValue(),1000) : (fallback || '');
+}
+
+function getCommunityInfo_(accessLevel) {
+  var prefix = accessLevel === 'STARTER' ? 'STARTER' : accessLevel === 'PROFESSIONAL' ? 'PROFESSIONAL' : 'VIP';
+  return {
+    groupName: settingValue_(prefix + '_GROUP_NAME', ''),
+    inviteUrl: safeUrl_(settingValue_(prefix + '_GROUP_LINK', '')),
+    supportHours: settingValue_(prefix + '_SUPPORT_HOURS', ''),
+    classLinkPolicy: settingValue_('CLASS_LINK_POLICY', ''),
+    recordingPolicy: settingValue_('RECORDING_POLICY', ''),
+    privateMessagePolicy: settingValue_('PRIVATE_MESSAGE_POLICY', '')
+  };
+}
+
+function verifyCertificate_(rawId) {
+  var certificateId = clean_(rawId, 60).toUpperCase();
+  if (!/^TREV-(STA|PRO|VIP)-2026-[0-9]{4,}$/.test(certificateId)) return { valid:false, status:'INVALID' };
+  var sheet = getSpreadsheet_().getSheetByName(TREV.CERTIFICATES_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return { valid:false, status:'NOT FOUND' };
+  var rowNumber = findExactRow_(sheet,1,certificateId);
+  if (!rowNumber) return { valid:false, status:'NOT FOUND' };
+  var row = sheet.getRange(rowNumber,1,1,CERTIFICATE_HEADERS.length).getValues()[0];
+  var status = clean_(row[8],30).toUpperCase() || 'ISSUED';
+  if (status === 'REVOKED') return { valid:false, status:'REVOKED' };
+  return { valid:true, certificate:{
+    id:certificateId, studentName:clean_(row[1],160), registrationId:clean_(row[2],60),
+    packageKey:clean_(row[3],30), packageLabel:clean_(row[4],160), attendance:clean_(row[5],30),
+    capstoneStatus:clean_(row[6],60), issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80),
+    status:status
+  }};
 }
 
 function generateUniqueAccessCodes_(prefix, count) {
@@ -993,7 +1362,8 @@ function sendPendingStudentEmail_(name, email, registrationId, packageInfo) {
     'Hi ' + firstName_(name) + ',\n\n' +
     'We received your registration for the ' + packageInfo.label + ' (' + packageInfo.price + ').\n' +
     'Registration reference: ' + registrationId + '\n\n' +
-    'Your payment is now awaiting manual verification. Once approved, your personal student-portal access code will be sent to this email address.\n\n' +
+    'Your payment is now awaiting manual verification. Normal verification takes 5 minutes to 1 hour. Once approved, your personal student-portal access code will be sent to this email address.\n\n' +
+    'If the transfer name differs from your registration name, contact support on WhatsApp so your identity and payment can be confirmed. Incorrect payment amounts will be refunded after verification.\n\n' +
     'TREV AI Support\n' + TREV.ADMIN_EMAIL;
   var html = emailShell_(
     'Registration received',
@@ -1001,9 +1371,11 @@ function sendPendingStudentEmail_(name, email, registrationId, packageInfo) {
     '<p>We received your registration for the <strong>' + escapeHtml_(packageInfo.label) + '</strong> (' + escapeHtml_(packageInfo.price) + ').</p>' +
     detailBox_([
       ['Registration reference', registrationId],
-      ['Status', 'Payment verification pending']
+      ['Status', 'Payment verification pending'],
+      ['Expected verification time', '5 minutes to 1 hour']
     ]) +
-    '<p>Once the transfer is verified, your personal student-portal access code will be sent to this email address.</p>'
+    '<p>Once the transfer is verified, your personal student-portal access code will be sent to this email address.</p>' +
+    '<p>If the transfer name differs from your registration name, contact support on WhatsApp. Incorrect payment amounts will be refunded after verification.</p>'
   );
   return sendMailSafely_(email, subject, text, html);
 }
@@ -1038,6 +1410,11 @@ function sendAdminRegistrationEmail_(data) {
 
 function sendApprovalEmail_(name, email, registrationId, packageInfo, codes) {
   var isTeam = codes.length > 1;
+  var community = getCommunityInfo_(packageInfo.accessLevel);
+  var communityText = community.inviteUrl ? '\nWhatsApp community (' + community.groupName + '): ' + community.inviteUrl : '';
+  var communityHtml = community.inviteUrl
+    ? '<p style="text-align:center"><a href="' + escapeHtml_(community.inviteUrl) + '" style="display:inline-block;border:1px solid #111;color:#111;text-decoration:none;font-weight:800;padding:12px 20px;border-radius:999px">Join ' + escapeHtml_(community.groupName) + '</a></p>'
+    : '<p>Your package community is <strong>' + escapeHtml_(community.groupName || 'the official TREV AI WhatsApp group') + '</strong>. The invitation will appear in your portal once configured.</p>';
   var subject = 'Payment confirmed — your TREV AI access code' + (isTeam ? 's' : '');
   var codeText = codes.map(function(code, index) {
     return (isTeam ? 'Seat ' + (index + 1) + ': ' : '') + code;
@@ -1052,7 +1429,8 @@ function sendApprovalEmail_(name, email, registrationId, packageInfo, codes) {
     'Your payment has been confirmed and your ' + packageInfo.label + ' enrollment is approved.\n\n' +
     (isTeam ? 'Team access codes:\n' : 'Access code: ') + codeText + '\n\n' +
     'Student portal: ' + TREV.PORTAL_URL + '\n' +
-    'Registration ID: ' + registrationId + '\n\n' +
+    'Registration ID: ' + registrationId + communityText + '\n\n' +
+    'Inside the portal you will find your package summary, timetable, onboarding checklist, resources, assignments, community guidelines, and support information.\n\n' +
     'Keep each code private and assign only one code to each approved learner.\n\nTREV AI Support';
   var html = emailShell_(
     'Your enrollment is approved',
@@ -1063,8 +1441,16 @@ function sendApprovalEmail_(name, email, registrationId, packageInfo, codes) {
       '<div style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#f2b705;margin-bottom:8px">' + (isTeam ? 'Team access codes' : 'Personal access code') + '</div>' +
       '<div style="font-family:monospace;font-size:22px;font-weight:800;letter-spacing:.06em">' + codeHtml + '</div>' +
     '</div>' +
-    detailBox_([['Registration ID', registrationId], ['Approved package', packageInfo.label]]) +
+    detailBox_([
+      ['Registration ID', registrationId],
+      ['Approved package', packageInfo.label],
+      ['Cohort begins', settingValue_('COHORT_START_DATE', '4 August 2026')],
+      ['Class time', settingValue_('CLASS_TIME', 'To be announced after onboarding')],
+      ['Support hours', community.supportHours]
+    ]) +
     '<p style="text-align:center"><a href="' + escapeHtml_(TREV.PORTAL_URL) + '" style="display:inline-block;background:#f2b705;color:#111;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:999px">Open Student Portal</a></p>' +
+    communityHtml +
+    '<p>The portal contains your package summary, timetable, onboarding checklist, resources, assignments, community guidelines, and support information.</p>' +
     '<p><strong>Keep each code private.</strong> Codes can be suspended if shared outside the approved enrollment.</p>'
   );
   return sendMailSafely_(email, subject, text, html);
@@ -1089,6 +1475,8 @@ function sendMailSafely_(to, subject, text, html) {
 
 function buildApprovalWhatsAppMessage_(name, packageInfo, codes) {
   var isTeam = codes.length > 1;
+  var community = getCommunityInfo_(packageInfo.accessLevel);
+  var communityLine = community.inviteUrl ? '\n\nWhatsApp community (' + community.groupName + '): ' + community.inviteUrl : '';
   var codeList = codes.map(function(code, index) {
     return isTeam
       ? (index + 1) + '. *' + code + '*'
@@ -1098,7 +1486,7 @@ function buildApprovalWhatsAppMessage_(name, packageInfo, codes) {
   return 'Hello ' + firstName_(name) + ', your payment has been confirmed and your ' +
     packageInfo.label + ' enrollment is approved.\n\n' +
     (isTeam ? 'Your five unique team access codes are:\n' : 'Your personal TREV AI access code is: ') + codeList +
-    '\n\nStudent portal: ' + TREV.PORTAL_URL +
+    '\n\nStudent portal: ' + TREV.PORTAL_URL + communityLine +
     '\n\nPlease keep each code private and assign one code per approved learner.\n\n' +
     '— TREV AI Support';
 }

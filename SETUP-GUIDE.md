@@ -36,8 +36,13 @@ You should now have:
 
 - A **Registrations** tab
 - A **Resources** tab
-- An **Assignments** tab
+- An **Assignments** tab, including the new **Guidelines** and **Grading Rubric** columns
 - An **Assignment Submissions** tab
+- A **Timetable** tab
+- An **Onboarding Checklist** tab
+- A **Community Guidelines** tab
+- A **Portal Settings** tab
+- A **Certificates** registry tab
 - A private Google Drive folder named **TREV AI Assignment Uploads**
 - A top menu named **TREV Registration**
 
@@ -61,21 +66,21 @@ https://script.google.com/macros/s/AKfycb.../exec
 
 ## Part 3 — Connect the website
 
-Open `js/config.js` and replace:
-
-```javascript
-appsScriptUrl: 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
-```
-
-with your real `/exec` URL:
-
-```javascript
-appsScriptUrl: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
-```
-
-Do not change the quotation marks or comma.
+The supplied Apps Script `/exec` URL is already entered in `js/config.js`. If you create a different deployment later, replace only the URL while keeping the quotation marks and comma.
 
 If your final GitHub Pages address changes, update `PORTAL_URL` near the top of `apps-script/trev-registration-backend.gs`, save, and deploy a **new version** of the Web App.
+
+### Add the three WhatsApp invitation links
+
+Open the **Portal Settings** sheet and paste the real group links into:
+
+- `STARTER_GROUP_LINK`
+- `PROFESSIONAL_GROUP_LINK`
+- `VIP_GROUP_LINK`
+
+The group names and support hours are already configured. Until these three links are added, the portal displays **Invite link pending** rather than exposing a broken button.
+
+The timetable is preloaded for 4–24 August 2026. When the final class time is chosen, update `CLASS_TIME` in **Portal Settings** and the Class Time column in **Timetable**.
 
 ## Part 4 — Upload the website
 
@@ -182,6 +187,26 @@ When a student submits:
 6. The student sees a submission receipt and history inside the portal.
 
 You can update the submission **Status** to `UNDER REVIEW`, `REVISION REQUESTED`, or `APPROVED`. Enter written comments in the **Feedback** column; the feedback appears in the student's portal the next time it refreshes.
+
+## Certificate verification registry
+
+The public verification page is `verify.html`. A certificate appears as valid only after you add a row to the **Certificates** sheet.
+
+Required values include:
+
+- Certificate ID, such as `TREV-PRO-2026-0001`
+- Student name
+- Registration ID
+- Package key and package label
+- Attendance percentage (minimum 75%)
+- Capstone status (`APPROVED`)
+- Issue date
+- Status (`ISSUED`; use `REVOKED` to invalidate it)
+- Optional PDF URL
+
+A verification link follows this format:
+
+`https://trevaisupport01.github.io/Trev/verify.html?id=TREV-PRO-2026-0001`
 
 ## Required end-to-end test
 

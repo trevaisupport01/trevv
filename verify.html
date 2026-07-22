@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Certificate | TREV AI Academy</title>
+  <meta name="description" content="Verify a TREV AI Academy certificate using its unique certificate ID.">
+  <meta name="robots" content="index,follow">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="verification-page">
+  <header class="verification-header">
+    <div class="container verification-header-inner">
+      <a href="index.html" class="logo" aria-label="TREV AI Homepage">
+        <svg class="logo-mark" width="30" height="30" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="2" y="20" width="7" height="14" rx="2" fill="currentColor"/><rect x="14.5" y="12" width="7" height="22" rx="2" fill="currentColor"/><rect x="27" y="2" width="7" height="32" rx="2" fill="currentColor"/><circle cx="30.5" cy="2" r="4.5" fill="var(--accent)"/>
+        </svg>
+        <span class="logo-accent">TREV</span> <span class="logo-text">AI</span>
+      </a>
+      <a href="portal.html" class="btn btn-outline btn-sm">Student Portal</a>
+    </div>
+  </header>
+
+  <main class="verification-main">
+    <div class="container verification-shell">
+      <div class="verification-intro">
+        <span class="section-tag">Credential Verification</span>
+        <h1>Verify a TREV AI certificate.</h1>
+        <p>Enter the certificate ID exactly as it appears on the credential.</p>
+      </div>
+
+      <form id="certificateForm" class="verification-form">
+        <label for="certificateId">Certificate ID</label>
+        <div class="verification-input-row">
+          <input id="certificateId" class="form-input" type="text" autocomplete="off" spellcheck="false" maxlength="40" placeholder="TREV-PRO-2026-0001" required>
+          <button id="certificateVerifyButton" class="btn btn-primary" type="submit">Verify Certificate</button>
+        </div>
+        <div id="certificateMessage" class="form-message" role="status" aria-live="polite" hidden></div>
+      </form>
+
+      <section id="certificateResult" class="certificate-result" tabindex="-1" hidden>
+        <div class="certificate-result-badge">VERIFIED</div>
+        <h2>Certificate is valid</h2>
+        <p>This credential was issued by TREV AI Academy.</p>
+        <dl class="certificate-result-grid">
+          <div><dt>Student</dt><dd id="verifiedStudent">—</dd></div>
+          <div><dt>Certificate ID</dt><dd id="verifiedCertificateId">—</dd></div>
+          <div><dt>Package</dt><dd id="verifiedPackage">—</dd></div>
+          <div><dt>Issue date</dt><dd id="verifiedIssueDate">—</dd></div>
+          <div><dt>Attendance</dt><dd id="verifiedAttendance">—</dd></div>
+          <div><dt>Capstone</dt><dd id="verifiedCapstone">—</dd></div>
+        </dl>
+      </section>
+    </div>
+  </main>
+
+  <footer class="portal-footer"><div class="container portal-footer-inner"><p>&copy; 2026 TREV AI Academy.</p><div><a href="index.html">Home</a><a href="contact.html#contact">Support</a></div></div></footer>
+  <script src="js/config.js" defer></script>
+  <script src="js/certificate.js" defer></script>
+</body>
+</html>
