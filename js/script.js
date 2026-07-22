@@ -392,55 +392,106 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 
-  // 10. REDUCED MOTION PREFERENCE CHECK
+  // 10. DECORATIVE MOTION PREFERENCES
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 
-  // 11. HERO PARALLAX SCROLL (dot-scatter drifts slower than the page)
+  // Let the footer version of the logo play only when it becomes visible.
+  const footerLogos = document.querySelectorAll('.footer-logo');
+  if (footerLogos.length > 0 && !prefersReducedMotion) {
+    const footerLogoObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('logo-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.25 });
+    footerLogos.forEach((logo) => footerLogoObserver.observe(logo));
+  }
+
+
+  // 11. HERO DOT DRIFT + TWINKLE
   const heroScatter = document.querySelector('.hero-scatter');
 
   if (heroScatter && !prefersReducedMotion) {
-    let parallaxTicking = false;
+    const dots = Array.from(heroScatter.querySelectorAll('circle'));
+    const mobileDots = window.matchMedia('(max-width: 768px)').matches;
 
-    const updateParallax = () => {
-      const offset = window.scrollY * 0.15;
+    // Small deterministic pseudo-random values keep the animation organic
+    // without changing on every refresh or requiring a heavy animation loop.
+    const seeded = (index, salt) => {
+      const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+      return value - Math.floor(value);
+    };
+
+    dots.forEach((dot, index) => {
+      const shouldAnimate = mobileDots ? index % 4 === 0 : index % 2 === 0;
+      if (!shouldAnimate) return;
+
+      const angle = seeded(index, 1) * Math.PI * 2;
+      const distance = 4 + seeded(index, 2) * 7;
+      const baseOpacity = Math.max(0.18, parseFloat(dot.getAttribute('opacity') || '0.55'));
+      const minOpacity = Math.max(0.1, baseOpacity * (0.42 + seeded(index, 3) * 0.18));
+      const maxOpacity = Math.min(0.95, Math.max(baseOpacity, baseOpacity * 1.18));
+
+      dot.classList.add('ambient-dot');
+      dot.style.setProperty('--dot-drift-x', `${(Math.cos(angle) * distance).toFixed(2)}px`);
+      dot.style.setProperty('--dot-drift-y', `${(Math.sin(angle) * distance).toFixed(2)}px`);
+      dot.style.setProperty('--dot-drift-duration', `${(7 + seeded(index, 4) * 8).toFixed(2)}s`);
+      dot.style.setProperty('--dot-drift-delay', `${(-seeded(index, 5) * 10).toFixed(2)}s`);
+      dot.style.setProperty('--dot-twinkle-duration', `${(3.5 + seeded(index, 6) * 5).toFixed(2)}s`);
+      dot.style.setProperty('--dot-twinkle-delay', `${(-seeded(index, 7) * 8).toFixed(2)}s`);
+      dot.style.setProperty('--dot-opacity-min', minOpacity.toFixed(2));
+      dot.style.setProperty('--dot-opacity-max', maxOpacity.toFixed(2));
+    });
+
+    // The whole field also moves at 15% of scroll speed, independently of
+    // the per-dot ambient motion above.
+    let parallaxTicking = false;
+    const updateHeroParallax = () => {
+      const offset = Math.min(window.scrollY * 0.15, 160);
       heroScatter.style.transform = `translate3d(0, ${offset}px, 0)`;
       parallaxTicking = false;
     };
 
     window.addEventListener('scroll', () => {
       if (!parallaxTicking) {
-        requestAnimationFrame(updateParallax);
+        window.requestAnimationFrame(updateHeroParallax);
         parallaxTicking = true;
       }
     }, { passive: true });
+    updateHeroParallax();
   }
 
 
-  // 12. 3D CURSOR-TILT ON FEATURE / PRICING CARDS
-  const tiltCards = document.querySelectorAll('.pricing-card, .bento-item, .why-card, .bonus-card');
+  // 12. 3D CURSOR TILT FOR POINTER DEVICES
+  const tiltCards = document.querySelectorAll(
+    '.pricing-card, .bento-item, .why-card, .bonus-card, .instructor-card-ui'
+  );
   const supportsHoverTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   if (tiltCards.length > 0 && supportsHoverTilt && !prefersReducedMotion) {
-    const maxTilt = 7; // degrees
+    const maxTilt = 6;
 
-    tiltCards.forEach(card => {
-      const baseScale = card.classList.contains('featured') ? ' scale(1.03)' : '';
-
-      card.addEventListener('mousemove', (e) => {
+    tiltCards.forEach((card) => {
+      card.addEventListener('mousemove', (event) => {
         const rect = card.getBoundingClientRect();
-        const px = (e.clientX - rect.left) / rect.width - 0.5;
-        const py = (e.clientY - rect.top) / rect.height - 0.5;
-        const rotateY = px * maxTilt * 2;
-        const rotateX = -py * maxTilt * 2;
+        const horizontal = (event.clientX - rect.left) / rect.width - 0.5;
+        const vertical = (event.clientY - rect.top) / rect.height - 0.5;
+        const rotateY = horizontal * maxTilt * 2;
+        const rotateX = -vertical * maxTilt * 2;
+        const featuredScale = card.classList.contains('featured') ? ' scale(1.03)' : '';
 
-        card.style.transition = 'transform 0.1s ease-out';
-        card.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-6px)${baseScale}`;
+        card.style.willChange = 'transform';
+        card.style.transition = 'transform 0.12s ease-out';
+        card.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-5px)${featuredScale}`;
       });
 
       card.addEventListener('mouseleave', () => {
         card.style.transition = 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)';
         card.style.transform = '';
+        window.setTimeout(() => { card.style.willChange = ''; }, 500);
       });
     });
   }
