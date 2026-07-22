@@ -77,7 +77,7 @@
 
     const timeout = window.setTimeout(
       () => cleanup(new Error('The portal took too long to respond.')),
-      12000
+      30000
     );
 
     window[callbackName] = (data) => cleanup(null, data);

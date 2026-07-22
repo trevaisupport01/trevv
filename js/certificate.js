@@ -26,7 +26,7 @@
       script.remove();
       error ? reject(error) : resolve(data);
     };
-    const timer = window.setTimeout(() => finish(new Error('Verification timed out. Please try again.')), 12000);
+    const timer = window.setTimeout(() => finish(new Error('Verification timed out. Please try again.')), 30000);
     window[callback] = (data) => finish(null, data);
     script.onerror = () => finish(new Error('The verification service could not be reached.'));
     script.src = `${config.appsScriptUrl}?${new URLSearchParams({ ...parameters, callback })}`;

@@ -144,6 +144,10 @@ var SUBMISSION_HEADERS = [
 
 var ALLOWED_UPLOAD_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'jpg', 'jpeg', 'png'];
 
+// Per-execution cache: avoids reopening the same spreadsheet and rereading
+// Portal Settings many times during a single login request.
+var TREV_REQUEST_CACHE = {};
+
 var COL = {
   TIMESTAMP: 1,
   REGISTRATION_ID: 2,
@@ -200,6 +204,8 @@ function onOpen() {
     .addItem('Resend selected access email', 'resendSelectedAccessEmail')
     .addItem('Rebuild selected WhatsApp link', 'rebuildSelectedWhatsAppLink')
     .addItem('Suspend selected access', 'suspendSelectedAccess')
+    .addSeparator()
+    .addItem('Refresh portal data cache', 'refreshPortalCache')
     .addToUi();
 }
 
@@ -238,7 +244,15 @@ function setupTrevSystem() {
   addChecklistRows_(checklist);
   addGuidelineRows_(guidelines);
   addSettingRows_(settings);
+
+  // Remove old FALSE checkbox values from otherwise blank rows. Those values
+  // made Sheets report hundreds of empty records and slowed portal login.
+  clearBlankTail_(resources, 3, RESOURCE_HEADERS.length);
+  clearBlankTail_(assignments, 1, ASSIGNMENT_HEADERS.length);
+  clearBlankTail_(checklist, 3, CHECKLIST_HEADERS.length);
+  clearBlankTail_(guidelines, 1, GUIDELINE_HEADERS.length);
   getUploadRootFolder_();
+  clearPortalCache_();
 
   SpreadsheetApp.flush();
   SpreadsheetApp.getUi().alert(
@@ -502,6 +516,7 @@ function verifyAccessCode_(rawCode) {
 
   var fullName = String(row[COL.FULL_NAME - 1] || 'Student');
   var registrationId = String(row[COL.REGISTRATION_ID - 1] || '');
+  var staticPortal = getStaticPortalData_(packageInfo.accessLevel);
   return {
     valid: true,
     student: {
@@ -514,20 +529,14 @@ function verifyAccessCode_(rawCode) {
       label: packageInfo.label,
       accessLevel: packageInfo.accessLevel
     },
-    resources: getResourcesForLevel_(packageInfo.accessLevel),
-    assignments: getAssignmentsForLevel_(packageInfo.accessLevel),
+    resources: staticPortal.resources,
+    assignments: staticPortal.assignments,
     submissions: getSubmissionsForRegistration_(registrationId),
-    timetable: getTimetableForLevel_(packageInfo.accessLevel),
-    onboarding: getChecklistForLevel_(packageInfo.accessLevel),
-    communityGuidelines: getCommunityGuidelines_(),
-    community: getCommunityInfo_(packageInfo.accessLevel),
-    cohort: {
-      startDate: settingValue_('COHORT_START_DATE', '4 August 2026'),
-      classTime: settingValue_('CLASS_TIME', 'To be announced after onboarding'),
-      duration: settingValue_('CLASS_DURATION', '90 minutes'),
-      capstoneDeadline: settingValue_('CAPSTONE_DEADLINE', '29 August 2026'),
-      certificateRelease: settingValue_('CERTIFICATE_RELEASE', '31 August 2026')
-    }
+    timetable: staticPortal.timetable,
+    onboarding: staticPortal.onboarding,
+    communityGuidelines: staticPortal.communityGuidelines,
+    community: staticPortal.community,
+    cohort: staticPortal.cohort
   };
 }
 
@@ -541,7 +550,7 @@ function getResourcesForLevel_(accessLevel) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.RESOURCES_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
 
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, RESOURCE_HEADERS.length).getValues();
+  var rows = getDataRows_(sheet, RESOURCE_HEADERS.length, 3);
   var resources = [];
 
   rows.forEach(function(row) {
@@ -578,7 +587,7 @@ function getAssignmentsForLevel_(accessLevel) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.ASSIGNMENTS_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
 
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, ASSIGNMENT_HEADERS.length).getValues();
+  var rows = getDataRows_(sheet, ASSIGNMENT_HEADERS.length, 1);
   var assignments = [];
 
   rows.forEach(function(row) {
@@ -616,7 +625,7 @@ function getSubmissionsForRegistration_(registrationId) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.SUBMISSIONS_SHEET);
   if (!sheet || sheet.getLastRow() < 2 || !registrationId) return [];
 
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, SUBMISSION_HEADERS.length).getValues();
+  var rows = getDataRows_(sheet, SUBMISSION_HEADERS.length, 2);
   var submissions = [];
 
   rows.forEach(function(row) {
@@ -897,11 +906,12 @@ function getSelectedRegistration_() {
 }
 
 function getSpreadsheet_() {
+  if (TREV_REQUEST_CACHE.spreadsheet) return TREV_REQUEST_CACHE.spreadsheet;
   var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (id) return SpreadsheetApp.openById(id);
-  var active = SpreadsheetApp.getActiveSpreadsheet();
-  if (!active) throw new Error('Spreadsheet is not configured. Run setupTrevSystem first.');
-  return active;
+  var spreadsheet = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error('Spreadsheet is not configured. Run setupTrevSystem first.');
+  TREV_REQUEST_CACHE.spreadsheet = spreadsheet;
+  return spreadsheet;
 }
 
 function getRegistrationsSheet_() {
@@ -931,6 +941,32 @@ function getOrUpgradeAssignmentsSheet_(ss) {
   if (oldHeaders.join('|') === oldSignature) sheet.insertColumnsAfter(4, 2);
   sheet.getRange(1, 1, 1, ASSIGNMENT_HEADERS.length).setValues([ASSIGNMENT_HEADERS]);
   return sheet;
+}
+
+function lastDataRowByKey_(sheet, keyColumn) {
+  var maxRows = sheet.getMaxRows();
+  if (maxRows < 2) return 1;
+  var values = sheet.getRange(2, keyColumn, maxRows - 1, 1).getDisplayValues();
+  for (var index = values.length - 1; index >= 0; index--) {
+    if (String(values[index][0]).trim()) return index + 2;
+  }
+  return 1;
+}
+
+function getDataRows_(sheet, columnCount, keyColumn) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  var values = sheet.getRange(2, 1, lastRow - 1, columnCount).getValues();
+  var keyIndex = (keyColumn || 1) - 1;
+  while (values.length && !String(values[values.length - 1][keyIndex] || '').trim()) values.pop();
+  return values;
+}
+
+function clearBlankTail_(sheet, keyColumn, columnCount) {
+  var lastRow = lastDataRowByKey_(sheet, keyColumn || 1);
+  if (lastRow < sheet.getMaxRows()) {
+    sheet.getRange(lastRow + 1, 1, sheet.getMaxRows() - lastRow, columnCount).clearContent();
+  }
 }
 
 function formatRegistrationsSheet_(sheet) {
@@ -968,7 +1004,7 @@ function formatResourcesSheet_(sheet) {
   sheet.setColumnWidth(4, 360);
   sheet.setColumnWidth(5, 300);
   sheet.setColumnWidth(6, 130);
-  sheet.getRange(2, 7, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
+  sheet.getRange(2, 7, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
       .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
@@ -978,7 +1014,7 @@ function formatResourcesSheet_(sheet) {
 }
 
 function addStarterResourceRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 3) > 1) return;
   sheet.getRange(2, 1, 4, RESOURCE_HEADERS.length).setValues([
     ['ALL', 'Orientation', 'Start Here', 'Add the general student welcome guide or orientation file in this row.', '', 'Download Guide', true, 1],
     ['STARTER', 'Course Materials', 'Starter Learning Manual', 'Add the Starter package manual, lesson files, or downloadable resources here.', '', 'Download Manual', true, 10],
@@ -1003,7 +1039,7 @@ function formatAssignmentsSheet_(sheet) {
   sheet.setColumnWidth(7, 120);
   sheet.setColumnWidth(8, 250);
   sheet.setColumnWidth(9, 110);
-  sheet.getRange(2, 10, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
+  sheet.getRange(2, 10, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
       .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
@@ -1037,7 +1073,7 @@ function formatSubmissionsSheet_(sheet) {
 }
 
 function addStarterAssignmentRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 1) > 1) return;
   sheet.getRange(2, 1, 4, ASSIGNMENT_HEADERS.length).setValues([
     ['GENERAL-PRACTICE', 'ALL', 'AI Workflow Practice', 'Upload a short document showing one practical workflow you completed with an AI tool.', 'Follow the task instructions, label your work clearly, and upload one final version.', 'Complete / Revision Required / Approved', '', '.pdf,.doc,.docx', 10, true, 1],
     ['STARTER-CAPSTONE', 'STARTER', 'Starter Capstone Project', 'Submit your completed Starter capstone using the assignment brief provided in your learning materials.', 'Use the Starter manual and demonstrate the prompt framework taught in class.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.zip', 10, true, 10],
@@ -1112,13 +1148,13 @@ function formatTimetableSheet_(sheet) {
 function formatChecklistSheet_(sheet) {
   styleAdminHeader_(sheet, CHECKLIST_HEADERS.length, '#f2b705', '#111111');
   sheet.setColumnWidth(1, 140); sheet.setColumnWidth(2, 100); sheet.setColumnWidth(3, 250); sheet.setColumnWidth(4, 420);
-  sheet.getRange(2, 5, Math.max(sheet.getMaxRows() - 1, 1), 2).insertCheckboxes();
+  sheet.getRange(2, 5, Math.max(sheet.getMaxRows() - 1, 1), 2).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
 }
 
 function formatGuidelinesSheet_(sheet) {
   styleAdminHeader_(sheet, GUIDELINE_HEADERS.length, '#111111', '#ffffff');
   sheet.setColumnWidth(1, 100); sheet.setColumnWidth(2, 250); sheet.setColumnWidth(3, 500);
-  sheet.getRange(2, 4, Math.max(sheet.getMaxRows() - 1, 1), 1).insertCheckboxes();
+  sheet.getRange(2, 4, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
 }
 
 function formatSettingsSheet_(sheet) {
@@ -1138,7 +1174,7 @@ function styleAdminHeader_(sheet, length, background, color) {
 }
 
 function addTimetableRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 1) > 1) return;
   var time = 'To be announced after onboarding';
   var note = 'The secure class link will be shared in the official WhatsApp group 30–60 minutes before class.';
   var rows = [
@@ -1168,7 +1204,7 @@ function addTimetableRows_(sheet) {
 }
 
 function addChecklistRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 3) > 1) return;
   var rows = [
     ['ALL',1,'Save your personal access code','Keep it private and do not save it on a shared device.',true,true],
     ['ALL',2,'Log into the student portal','Confirm your package, registration ID, timetable, resources, and assignments.',true,true],
@@ -1187,7 +1223,7 @@ function addChecklistRows_(sheet) {
 }
 
 function addGuidelineRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 1) > 1) return;
   var rows = [
     ['G01','Respectful communication','No harassment, disrespect, discrimination, threats, or disruptive behaviour.',true,1],
     ['G02','No spam or unrelated promotion','Do not post unrelated advertisements, schemes, referral links, or repetitive promotional messages.',true,2],
@@ -1204,7 +1240,7 @@ function addGuidelineRows_(sheet) {
 }
 
 function addSettingRows_(sheet) {
-  if (sheet.getLastRow() > 1) return;
+  if (lastDataRowByKey_(sheet, 1) > 1) return;
   var rows = [
     ['COHORT_START_DATE','4 August 2026','First day of the rotating cohort timetable.'],
     ['CLASS_TIME','To be announced after onboarding','Update once the final daily time is fixed.'],
@@ -1233,7 +1269,7 @@ function addSettingRows_(sheet) {
 function getTimetableForLevel_(accessLevel) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.TIMETABLE_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, TIMETABLE_HEADERS.length).getValues();
+  var rows = getDataRows_(sheet, TIMETABLE_HEADERS.length, 1);
   return rows.filter(function(row) {
     var level = clean_(row[2], 30).toUpperCase();
     return level === 'ALL' || level === accessLevel;
@@ -1249,7 +1285,7 @@ function getTimetableForLevel_(accessLevel) {
 function getChecklistForLevel_(accessLevel) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.CHECKLIST_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, CHECKLIST_HEADERS.length).getValues();
+  var rows = getDataRows_(sheet, CHECKLIST_HEADERS.length, 3);
   return rows.filter(function(row) {
     var level = clean_(row[0], 30).toUpperCase();
     var visible = row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
@@ -1262,18 +1298,30 @@ function getChecklistForLevel_(accessLevel) {
 function getCommunityGuidelines_() {
   var sheet = getSpreadsheet_().getSheetByName(TREV.GUIDELINES_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return sheet.getRange(2,1,sheet.getLastRow()-1,GUIDELINE_HEADERS.length).getValues().filter(function(row){
+  return getDataRows_(sheet, GUIDELINE_HEADERS.length, 1).filter(function(row){
     return row[3]===true||String(row[3]).toUpperCase()==='TRUE';
   }).map(function(row){
     return { id:clean_(row[0],30), title:clean_(row[1],160), guideline:clean_(row[2],800), sortOrder:Number(row[4]||999) };
   }).sort(function(a,b){return a.sortOrder-b.sortOrder;});
 }
 
-function settingValue_(key, fallback) {
+function getSettingsMap_() {
+  if (TREV_REQUEST_CACHE.settings) return TREV_REQUEST_CACHE.settings;
+  var map = {};
   var sheet = getSpreadsheet_().getSheetByName(TREV.SETTINGS_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return fallback || '';
-  var rowNumber = findExactRow_(sheet, 1, key);
-  return rowNumber ? clean_(sheet.getRange(rowNumber,2).getDisplayValue(),1000) : (fallback || '');
+  if (sheet) {
+    getDataRows_(sheet, SETTING_HEADERS.length, 1).forEach(function(row) {
+      var key = clean_(row[0], 100);
+      if (key) map[key] = clean_(row[1], 1000);
+    });
+  }
+  TREV_REQUEST_CACHE.settings = map;
+  return map;
+}
+
+function settingValue_(key, fallback) {
+  var settings = getSettingsMap_();
+  return Object.prototype.hasOwnProperty.call(settings, key) && settings[key] ? settings[key] : (fallback || '');
 }
 
 function getCommunityInfo_(accessLevel) {
@@ -1286,6 +1334,45 @@ function getCommunityInfo_(accessLevel) {
     recordingPolicy: settingValue_('RECORDING_POLICY', ''),
     privateMessagePolicy: settingValue_('PRIVATE_MESSAGE_POLICY', '')
   };
+}
+
+function getStaticPortalData_(accessLevel) {
+  var cache = CacheService.getScriptCache();
+  var key = 'portal-static-v3-' + accessLevel;
+  var cached = cache.get(key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (ignored) {}
+  }
+  var data = {
+    resources: getResourcesForLevel_(accessLevel),
+    assignments: getAssignmentsForLevel_(accessLevel),
+    timetable: getTimetableForLevel_(accessLevel),
+    onboarding: getChecklistForLevel_(accessLevel),
+    communityGuidelines: getCommunityGuidelines_(),
+    community: getCommunityInfo_(accessLevel),
+    cohort: {
+      startDate: settingValue_('COHORT_START_DATE', '4 August 2026'),
+      classTime: settingValue_('CLASS_TIME', 'To be announced after onboarding'),
+      duration: settingValue_('CLASS_DURATION', '90 minutes'),
+      capstoneDeadline: settingValue_('CAPSTONE_DEADLINE', '29 August 2026'),
+      certificateRelease: settingValue_('CERTIFICATE_RELEASE', '31 August 2026')
+    }
+  };
+  try { cache.put(key, JSON.stringify(data), 300); } catch (ignored) {}
+  return data;
+}
+
+function clearPortalCache_() {
+  CacheService.getScriptCache().removeAll([
+    'portal-static-v3-STARTER',
+    'portal-static-v3-PROFESSIONAL',
+    'portal-static-v3-VIP'
+  ]);
+}
+
+function refreshPortalCache() {
+  clearPortalCache_();
+  SpreadsheetApp.getUi().alert('Portal data cache cleared. Updated resources, timetable, checklist, guidelines, and settings will be visible on the next login.');
 }
 
 function verifyCertificate_(rawId) {
