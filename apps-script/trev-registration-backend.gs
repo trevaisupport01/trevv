@@ -26,8 +26,11 @@ var TREV = {
   GUIDELINES_SHEET: 'Community Guidelines',
   SETTINGS_SHEET: 'Portal Settings',
   CERTIFICATES_SHEET: 'Certificates',
+  CONTENT_UPDATES_SHEET: 'Content Updates',
   UPLOAD_ROOT_FOLDER: 'TREV AI Assignment Uploads',
+  MATERIAL_ROOT_FOLDER: 'TREV AI Course Materials',
   MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
+  MAX_MATERIAL_BYTES: 20 * 1024 * 1024,
   COHORT_START: '2026-08-04',
   CAPSTONE_DEADLINE: '2026-08-29',
   CERTIFICATE_RELEASE: '2026-08-31',
@@ -62,8 +65,11 @@ var RESOURCE_HEADERS = [
   'Description',
   'URL',
   'Button Label',
+  'Material Type',
+  'File Size',
   'Visible',
-  'Sort Order'
+  'Sort Order',
+  'Drive File ID'
 ];
 
 var ASSIGNMENT_HEADERS = [
@@ -125,6 +131,17 @@ var CERTIFICATE_HEADERS = [
   'PDF URL'
 ];
 
+var CONTENT_UPDATE_HEADERS = [
+  'Audience',
+  'Subject',
+  'Email Content',
+  'Resource Link',
+  'Scheduled Date',
+  'Status',
+  'Recipient Count',
+  'Sent At'
+];
+
 var SUBMISSION_HEADERS = [
   'Timestamp',
   'Submission ID',
@@ -170,30 +187,35 @@ var COL = {
 
 var PACKAGES = {
   STARTER: {
-    label: 'Starter Package',
-    price: '₦10,000',
-    accessLevel: 'STARTER',
-    codePrefix: 'STA'
+    label: 'Starter Package', earlyPrice: '₦8,000', normalPrice: '₦10,000',
+    accessLevel: 'STARTER', codePrefix: 'STA'
   },
   PROFESSIONAL: {
-    label: 'Professional Package',
-    price: '₦35,000',
-    accessLevel: 'PROFESSIONAL',
-    codePrefix: 'PRO'
+    label: 'Professional Package', earlyPrice: '₦30,000', normalPrice: '₦35,000',
+    accessLevel: 'PROFESSIONAL', codePrefix: 'PRO'
   },
   VIP_SEAT: {
-    label: 'VIP Executive — Individual Seat',
-    price: '₦75,000',
-    accessLevel: 'VIP',
-    codePrefix: 'VIP'
+    label: 'VIP Executive — Individual Seat', earlyPrice: '₦70,000', normalPrice: '₦75,000',
+    accessLevel: 'VIP', codePrefix: 'VIP'
   },
   VIP_TEAM: {
-    label: 'VIP Executive — Team of up to 5',
-    price: '₦250,000',
-    accessLevel: 'VIP',
-    codePrefix: 'VIP'
+    label: 'VIP Executive — Team of up to 5', earlyPrice: '₦225,000', normalPrice: '₦250,000',
+    accessLevel: 'VIP', codePrefix: 'VIP'
   }
 };
+
+
+function isEarlyBirdAt_(date) {
+  var deadline = new Date('2026-07-28T23:59:59+01:00');
+  return (date || new Date()).getTime() <= deadline.getTime();
+}
+
+function packageWithPrice_(packageInfo, capturedPrice) {
+  var copy = {};
+  Object.keys(packageInfo).forEach(function(key) { copy[key] = packageInfo[key]; });
+  copy.price = capturedPrice || (isEarlyBirdAt_(new Date()) ? packageInfo.earlyPrice : packageInfo.normalPrice);
+  return copy;
+}
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -207,6 +229,43 @@ function onOpen() {
     .addSeparator()
     .addItem('Refresh portal data cache', 'refreshPortalCache')
     .addToUi();
+
+  SpreadsheetApp.getUi()
+    .createMenu('TREV Content Manager')
+    .addItem('Upload Course Material', 'showMaterialManager')
+    .addItem('Edit / Replace Selected Material', 'editSelectedMaterial')
+    .addSeparator()
+    .addItem('Unpublish Selected Material', 'unpublishSelectedMaterial')
+    .addItem('Publish Selected Material', 'publishSelectedMaterial')
+    .addItem('Delete Selected Material', 'deleteSelectedMaterial')
+    .addItem('Refresh Portal Content', 'refreshPortalCache')
+    .addToUi();
+
+  SpreadsheetApp.getUi()
+    .createMenu('TREV Updates')
+    .addItem('Install Daily Email Trigger', 'installContentUpdateTrigger')
+    .addItem('Send Due Updates Now', 'processContentUpdates')
+    .addToUi();
+}
+
+
+/** Automatically invalidate portal data after relevant Sheet edits. */
+function onEdit(e) {
+  try {
+    var sheet = e && e.range && e.range.getSheet();
+    if (!sheet) return;
+    var watched = [
+      TREV.RESOURCES_SHEET,
+      TREV.ASSIGNMENTS_SHEET,
+      TREV.TIMETABLE_SHEET,
+      TREV.CHECKLIST_SHEET,
+      TREV.GUIDELINES_SHEET,
+      TREV.SETTINGS_SHEET
+    ];
+    if (watched.indexOf(sheet.getName()) !== -1) clearPortalCache_();
+  } catch (error) {
+    console.error('Portal cache auto-refresh failed: ' + error);
+  }
 }
 
 /** Run once before deploying the Web App. Safe to run again. */
@@ -218,7 +277,7 @@ function setupTrevSystem() {
   ss.setSpreadsheetTimeZone(TREV.TIMEZONE);
 
   var registrations = getOrCreateSheet_(ss, TREV.REGISTRATIONS_SHEET, REG_HEADERS);
-  var resources = getOrCreateSheet_(ss, TREV.RESOURCES_SHEET, RESOURCE_HEADERS);
+  var resources = getOrUpgradeResourcesSheet_(ss);
   var assignments = getOrUpgradeAssignmentsSheet_(ss);
   var submissions = getOrCreateSheet_(ss, TREV.SUBMISSIONS_SHEET, SUBMISSION_HEADERS);
   var timetable = getOrCreateSheet_(ss, TREV.TIMETABLE_SHEET, TIMETABLE_HEADERS);
@@ -226,6 +285,7 @@ function setupTrevSystem() {
   var guidelines = getOrCreateSheet_(ss, TREV.GUIDELINES_SHEET, GUIDELINE_HEADERS);
   var settings = getOrCreateSheet_(ss, TREV.SETTINGS_SHEET, SETTING_HEADERS);
   var certificates = getOrCreateSheet_(ss, TREV.CERTIFICATES_SHEET, CERTIFICATE_HEADERS);
+  var contentUpdates = getOrCreateSheet_(ss, TREV.CONTENT_UPDATES_SHEET, CONTENT_UPDATE_HEADERS);
 
   formatRegistrationsSheet_(registrations);
   formatResourcesSheet_(resources);
@@ -236,10 +296,8 @@ function setupTrevSystem() {
   formatGuidelinesSheet_(guidelines);
   formatSettingsSheet_(settings);
   formatCertificatesSheet_(certificates);
-  addStarterResourceRows_(resources);
-  upsertProvidedResource_(resources);
-  addStarterAssignmentRows_(assignments);
-  upsertProvidedAssignment_(assignments);
+  formatContentUpdatesSheet_(contentUpdates);
+  removeLegacyTestContent_(resources, assignments);
   addTimetableRows_(timetable);
   addChecklistRows_(checklist);
   addGuidelineRows_(guidelines);
@@ -252,6 +310,7 @@ function setupTrevSystem() {
   clearBlankTail_(checklist, 3, CHECKLIST_HEADERS.length);
   clearBlankTail_(guidelines, 1, GUIDELINE_HEADERS.length);
   getUploadRootFolder_();
+  getMaterialRootFolder_();
   clearPortalCache_();
 
   SpreadsheetApp.flush();
@@ -321,6 +380,7 @@ function registerStudent_(parameters) {
   var paymentReference = clean_(parameters.paymentReference, 120);
   var consent = String(parameters.consent).toLowerCase() === 'true';
   var packageInfo = PACKAGES[packageKey];
+  if (packageInfo) packageInfo = packageWithPrice_(packageInfo);
 
   if (fullName.length < 2) throw new Error('A valid full name is required.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('A valid email is required.');
@@ -390,6 +450,7 @@ function approveSelectedRegistration() {
   var row = context.values;
   var packageKey = String(row[COL.PACKAGE_KEY - 1]).toUpperCase();
   var packageInfo = PACKAGES[packageKey];
+  if (packageInfo) packageInfo = packageWithPrice_(packageInfo, String(row[COL.PRICE - 1] || ''));
 
   if (!packageInfo) {
     ui.alert('Cannot approve', 'The selected row has an invalid package key.', ui.ButtonSet.OK);
@@ -441,6 +502,7 @@ function resendSelectedAccessEmail() {
   var context = getSelectedRegistration_();
   var row = context.values;
   var packageInfo = PACKAGES[String(row[COL.PACKAGE_KEY - 1]).toUpperCase()];
+  if (packageInfo) packageInfo = packageWithPrice_(packageInfo, String(row[COL.PRICE - 1] || ''));
   var codes = splitAccessCodes_(row[COL.ACCESS_CODE - 1]);
 
   if (!packageInfo || !codes.length || String(row[COL.STATUS - 1]).toUpperCase() !== 'APPROVED') {
@@ -464,6 +526,7 @@ function rebuildSelectedWhatsAppLink() {
   var context = getSelectedRegistration_();
   var row = context.values;
   var packageInfo = PACKAGES[String(row[COL.PACKAGE_KEY - 1]).toUpperCase()];
+  if (packageInfo) packageInfo = packageWithPrice_(packageInfo, String(row[COL.PRICE - 1] || ''));
   var codes = splitAccessCodes_(row[COL.ACCESS_CODE - 1]);
 
   if (!packageInfo || !codes.length) {
@@ -541,11 +604,7 @@ function verifyAccessCode_(rawCode) {
 }
 
 function getResourcesForLevel_(accessLevel) {
-  var allowed = {
-    STARTER: ['ALL', 'STARTER'],
-    PROFESSIONAL: ['ALL', 'STARTER', 'PROFESSIONAL'],
-    VIP: ['ALL', 'STARTER', 'PROFESSIONAL', 'VIP']
-  }[accessLevel] || ['ALL'];
+  var allowed = ['ALL', accessLevel];
 
   var sheet = getSpreadsheet_().getSheetByName(TREV.RESOURCES_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return [];
@@ -555,23 +614,28 @@ function getResourcesForLevel_(accessLevel) {
 
   rows.forEach(function(row) {
     var level = clean_(row[0], 30).toUpperCase();
-    var visible = row[6] === true || String(row[6]).toUpperCase() === 'TRUE';
+    var visible = row[8] === true || String(row[8]).toUpperCase() === 'TRUE';
     if (allowed.indexOf(level) === -1 || !visible || !clean_(row[2], 150)) return;
 
     var originalUrl = safeUrl_(row[4]);
-    var buttonLabel = clean_(row[5], 50) || 'Download Resource';
-    var directUrl = makeDirectDownloadUrl_(originalUrl);
-    var isDownload = Boolean(originalUrl) && (directUrl !== originalUrl || /download|manual|template|workbook|pdf/i.test(buttonLabel));
+    var materialType = clean_(row[6], 40).toUpperCase() || 'FILE';
+    var buttonLabel = clean_(row[5], 50) || (materialType === 'VIDEO' ? 'Watch Video' : 'Download Resource');
+    var isVideo = materialType === 'VIDEO';
+    var directUrl = isVideo ? makeDrivePreviewUrl_(originalUrl) : makeDirectDownloadUrl_(originalUrl);
+    var isDownload = !isVideo && Boolean(originalUrl) && (directUrl !== originalUrl || /download|manual|template|workbook|pdf|slide/i.test(buttonLabel));
 
     resources.push({
       accessLevel: level,
       category: clean_(row[1], 80) || 'Course Resources',
       title: clean_(row[2], 150),
       description: clean_(row[3], 500),
-      url: isDownload ? directUrl : originalUrl,
+      url: isDownload ? directUrl : (directUrl || originalUrl),
       buttonLabel: buttonLabel,
+      materialType: materialType,
+      fileSize: clean_(row[7], 40),
       download: isDownload,
-      sortOrder: Number(row[7] || 999)
+      video: isVideo,
+      sortOrder: Number(row[9] || 999)
     });
   });
 
@@ -608,8 +672,8 @@ function getAssignmentsForLevel_(accessLevel) {
       accessLevel: level,
       title: clean_(row[2], 150),
       instructions: clean_(row[3], 1500),
-      guidelines: clean_(row[4], 5000),
-      gradingRubric: clean_(row[5], 5000),
+      guidelines: cleanMultiline_(row[4], 5000),
+      gradingRubric: cleanMultiline_(row[5], 5000),
       dueDate: dueDate,
       acceptedFiles: clean_(row[7], 120) || '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.jpg,.jpeg,.png',
       maxSizeMb: Math.min(Math.max(Number(row[8] || 10), 1), 10),
@@ -827,6 +891,144 @@ function sendAssignmentNotification_(data) {
   return sendMailSafely_(TREV.ADMIN_EMAIL, subject, text, html);
 }
 
+
+function showMaterialManager() {
+  SpreadsheetApp.getUi().showSidebar(HtmlService.createHtmlOutput(materialManagerHtml_(null)).setTitle('TREV Content Manager'));
+}
+
+function editSelectedMaterial() {
+  var context=getSelectedResourceContext_();
+  var row=context.sheet.getRange(context.row,1,1,RESOURCE_HEADERS.length).getDisplayValues()[0];
+  var data={rowNumber:context.row,accessLevel:row[0],category:row[1],title:row[2],description:row[3],url:row[4],buttonLabel:row[5],materialType:row[6]||'LINK',sortOrder:row[9]||100,visible:String(row[8]).toUpperCase()==='TRUE'};
+  SpreadsheetApp.getUi().showSidebar(HtmlService.createHtmlOutput(materialManagerHtml_(data)).setTitle('Edit Course Material'));
+}
+
+/** Called by the Sheet sidebar. File input becomes a Blob through google.script.run. */
+function publishCourseMaterial(formObject) {
+  var level = clean_(formObject.accessLevel, 30).toUpperCase();
+  var category = clean_(formObject.category, 80);
+  var title = clean_(formObject.title, 150);
+  var description = clean_(formObject.description, 500);
+  var materialType = clean_(formObject.materialType, 30).toUpperCase();
+  var externalUrl = safeUrl_(formObject.driveUrl);
+  var buttonLabel = clean_(formObject.buttonLabel, 50);
+  var sortOrder = Number(formObject.sortOrder || 999);
+  var visible = String(formObject.visible).toLowerCase() === 'true';
+  var rowNumber = Number(formObject.rowNumber || 0);
+  var sheet = getSpreadsheet_().getSheetByName(TREV.RESOURCES_SHEET);
+  if (!sheet) throw new Error('Resources sheet is missing. Run setupTrevSystem.');
+  var current = rowNumber >= 2 ? sheet.getRange(rowNumber,1,1,RESOURCE_HEADERS.length).getValues()[0] : null;
+  if (['ALL','STARTER','PROFESSIONAL','VIP'].indexOf(level) === -1) throw new Error('Choose a valid access level.');
+  if (!category || !title) throw new Error('Category and title are required.');
+  if (['PDF','SLIDES','TEMPLATE','WORKBOOK','VIDEO','LINK'].indexOf(materialType) === -1) throw new Error('Choose a valid material type.');
+
+  var url = externalUrl || (current ? safeUrl_(current[4]) : '');
+  var driveFileId = current ? clean_(current[10],180) : '';
+  var fileSize = current ? clean_(current[7],40) : '';
+  var blob = formObject.materialFile;
+  var hasFile = blob && typeof blob.getBytes === 'function' && blob.getName();
+
+  if (materialType === 'VIDEO' || materialType === 'LINK') {
+    if (!url) throw new Error('Paste a valid Drive or external link.');
+    driveFileId = extractDriveFileId_(url);
+    if (!buttonLabel) buttonLabel = materialType === 'VIDEO' ? 'Watch Video' : 'Open Resource';
+  } else {
+    if (!hasFile && !current) throw new Error('Choose a PDF, PowerPoint, document, or ZIP file.');
+    if (!hasFile && current) {
+      if (!url) throw new Error('Upload a replacement file.');
+      if (!buttonLabel) buttonLabel = materialType === 'SLIDES' ? 'Download Slides' : materialType === 'TEMPLATE' ? 'Download Template' : 'Download Material';
+    } else {
+    var bytes = blob.getBytes();
+    if (!bytes.length) throw new Error('The selected file is empty.');
+    if (bytes.length > TREV.MAX_MATERIAL_BYTES) throw new Error('Course material uploads are limited to 20MB. Upload larger files directly to Drive and use a link.');
+    var extension = (clean_(blob.getName(),180).toLowerCase().match(/\.([a-z0-9]+)$/) || [,''])[1];
+    if (['pdf','ppt','pptx','doc','docx','xls','xlsx','zip'].indexOf(extension) === -1) throw new Error('Unsupported file type.');
+    var folder = getMaterialFolder_(level, materialType);
+    var safeName = safeFileName_(title + '-' + Utilities.formatDate(new Date(),TREV.TIMEZONE,'yyyyMMdd-HHmmss') + '.' + extension);
+    blob.setName(safeName);
+    var file = folder.createFile(blob);
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (ignored) {}
+    url = file.getUrl();
+    driveFileId = file.getId();
+    fileSize = formatFileSize_(bytes.length);
+    if (!buttonLabel) buttonLabel = materialType === 'SLIDES' ? 'Download Slides' : materialType === 'TEMPLATE' ? 'Download Template' : 'Download Material';
+    }
+  }
+
+  var values=[level,category,title,description,url,buttonLabel,materialType,fileSize,visible,sortOrder,driveFileId];
+  if (current) sheet.getRange(rowNumber,1,1,RESOURCE_HEADERS.length).setValues([values]);
+  else sheet.appendRow(values);
+  clearPortalCache_();
+  return { ok:true, title:title, message:title + (current ? ' was updated.' : ' was published to ' + level + '.') };
+}
+
+function getSelectedResourceContext_() {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var range = sheet.getActiveRange();
+  if (!sheet || sheet.getName() !== TREV.RESOURCES_SHEET || !range || range.getRow() < 2) throw new Error('Select a material row in the Resources sheet first.');
+  return { sheet:sheet, row:range.getRow() };
+}
+
+function unpublishSelectedMaterial() {
+  var context = getSelectedResourceContext_();
+  context.sheet.getRange(context.row,9).setValue(false);
+  clearPortalCache_();
+  SpreadsheetApp.getUi().alert('Material unpublished.');
+}
+
+function publishSelectedMaterial() {
+  var context = getSelectedResourceContext_();
+  context.sheet.getRange(context.row,9).setValue(true);
+  clearPortalCache_();
+  SpreadsheetApp.getUi().alert('Material published.');
+}
+
+function deleteSelectedMaterial() {
+  var ui=SpreadsheetApp.getUi();
+  var context=getSelectedResourceContext_();
+  var title=context.sheet.getRange(context.row,3).getDisplayValue();
+  if (ui.alert('Delete material?', 'Delete “' + title + '” from the portal? The Drive file is not deleted automatically.', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  context.sheet.deleteRow(context.row);
+  clearPortalCache_();
+  ui.alert('Material deleted from the portal.');
+}
+
+function getMaterialRootFolder_() {
+  var properties=PropertiesService.getScriptProperties();
+  var id=properties.getProperty('MATERIAL_ROOT_FOLDER_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (ignored) {} }
+  var folders=DriveApp.getFoldersByName(TREV.MATERIAL_ROOT_FOLDER);
+  var folder=folders.hasNext()?folders.next():DriveApp.createFolder(TREV.MATERIAL_ROOT_FOLDER);
+  properties.setProperty('MATERIAL_ROOT_FOLDER_ID',folder.getId());
+  return folder;
+}
+
+function getMaterialFolder_(level,type) {
+  var root=getMaterialRootFolder_();
+  var packageFolder=getOrCreateChildFolder_(root,level==='ALL'?'All Students':level);
+  return getOrCreateChildFolder_(packageFolder,type);
+}
+
+function formatFileSize_(bytes) {
+  if (bytes < 1024*1024) return Math.max(1,Math.round(bytes/1024)) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function materialManagerHtml_(initial) {
+  var initialJson = JSON.stringify(initial || {}).replace(/</g, '\\u003c');
+  return '<!doctype html><html><head><base target="_top"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' +
+    'body{font-family:Arial,sans-serif;margin:0;padding:18px;color:#171717}h2{margin:0 0 5px}p{color:#666;font-size:13px;line-height:1.5}form{display:grid;gap:12px;margin-top:18px}label{font-size:12px;font-weight:700}input,select,textarea{width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #ccc;border-radius:7px;font:inherit}textarea{resize:vertical}small{color:#777;font-size:11px}button{border:0;border-radius:999px;background:#111;color:#fff;padding:12px;font-weight:800;cursor:pointer}button:disabled{opacity:.6}.check{display:flex;align-items:center;gap:8px}.check input{width:auto;margin:0}#status{font-size:12px;padding:10px;border-radius:7px}#status:empty{display:none}.ok{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}</style></head><body>' +
+    '<h2>Upload Course Material</h2><p>Publish PDFs, slides, templates, workbooks, Drive videos, or external resources without redeploying the website.</p>' +
+    '<form onsubmit="send(event,this)"><input type="hidden" name="rowNumber"><label>Package<select name="accessLevel" required><option value="ALL">All students</option><option value="STARTER">Starter only</option><option value="PROFESSIONAL">Professional only</option><option value="VIP">VIP only</option></select></label>' +
+    '<label>Category<input name="category" placeholder="Session Slides" required></label><label>Title<input name="title" required></label><label>Description<textarea name="description" rows="3"></textarea></label>' +
+    '<label>Material type<select name="materialType" id="type" onchange="toggle()"><option value="PDF">PDF / Document</option><option value="SLIDES">PowerPoint / Slides</option><option value="TEMPLATE">Template</option><option value="WORKBOOK">Workbook</option><option value="VIDEO">Google Drive Video</option><option value="LINK">External Link</option></select></label>' +
+    '<label id="fileRow">Upload file<input type="file" name="materialFile" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.zip"><small>Maximum 20MB. Upload larger files directly to Drive.</small></label>' +
+    '<label id="urlRow" style="display:none">Drive or external link<input type="url" name="driveUrl" placeholder="https://drive.google.com/file/d/..."></label>' +
+    '<label>Button label<input name="buttonLabel" placeholder="Download Slides"></label><label>Sort order<input type="number" name="sortOrder" value="100"></label>' +
+    '<label class="check"><input type="checkbox" name="visible" value="true" checked> Publish immediately</label><div id="status"></div><button id="submit" type="submit">Publish Material</button></form>' +
+    '<script>var initial=' + initialJson + ';function init(){var f=document.forms[0];Object.keys(initial).forEach(function(k){if(f.elements[k]){if(f.elements[k].type==="checkbox")f.elements[k].checked=!!initial[k];else f.elements[k].value=initial[k]||"";}});toggle();if(initial.rowNumber)document.getElementById("submit").textContent="Update Material";}function toggle(){var t=document.getElementById("type").value,link=t==="VIDEO"||t==="LINK";document.getElementById("fileRow").style.display=link?"none":"block";document.getElementById("urlRow").style.display=link?"block":"none";}function send(e,f){e.preventDefault();var b=document.getElementById("submit"),s=document.getElementById("status");b.disabled=true;b.textContent="Publishing…";s.className="";s.textContent="Uploading and publishing…";google.script.run.withSuccessHandler(function(r){s.className="ok";s.textContent=r.message;b.disabled=false;b.textContent="Publish Another";f.reset();toggle();}).withFailureHandler(function(err){s.className="error";s.textContent=err.message||"Upload failed";b.disabled=false;b.textContent="Try Again";}).publishCourseMaterial(f);}window.addEventListener("load",init);</script></body></html>';
+}
+
 function getUploadRootFolder_() {
   var properties = PropertiesService.getScriptProperties();
   var existingId = properties.getProperty('UPLOAD_ROOT_FOLDER_ID');
@@ -860,15 +1062,25 @@ function safeFileName_(value) {
     .slice(0, 180) || 'file';
 }
 
+function extractDriveFileId_(url) {
+  var safe = safeUrl_(url);
+  if (!safe || !/drive\.google\.com/i.test(safe)) return '';
+  var match = safe.match(/\/file\/d\/([A-Za-z0-9_-]+)/) || safe.match(/[?&]id=([A-Za-z0-9_-]+)/) || safe.match(/\/d\/([A-Za-z0-9_-]+)/);
+  return match ? match[1] : '';
+}
+
 function makeDirectDownloadUrl_(url) {
   var safe = safeUrl_(url);
   if (!safe) return '';
-  if (!/drive\.google\.com/i.test(safe)) return safe;
+  var fileId = extractDriveFileId_(safe);
+  return fileId ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(fileId) : safe;
+}
 
-  var match = safe.match(/\/file\/d\/([A-Za-z0-9_-]+)/) ||
-    safe.match(/[?&]id=([A-Za-z0-9_-]+)/) ||
-    safe.match(/\/d\/([A-Za-z0-9_-]+)/);
-  return match ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(match[1]) : safe;
+function makeDrivePreviewUrl_(url) {
+  var safe = safeUrl_(url);
+  if (!safe) return '';
+  var fileId = extractDriveFileId_(safe);
+  return fileId ? 'https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/preview' : safe;
 }
 
 function uploadErrorPage_(message) {
@@ -924,6 +1136,25 @@ function getOrCreateSheet_(ss, name, headers) {
   var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   var existing = sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0];
   if (existing.join('|') !== headers.join('|')) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return sheet;
+}
+
+
+/** Preserves existing resources while adding material metadata columns. */
+function getOrUpgradeResourcesSheet_(ss) {
+  var sheet = ss.getSheetByName(TREV.RESOURCES_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(TREV.RESOURCES_SHEET);
+    sheet.getRange(1, 1, 1, RESOURCE_HEADERS.length).setValues([RESOURCE_HEADERS]);
+    return sheet;
+  }
+  var oldHeaders = sheet.getRange(1, 1, 1, Math.min(sheet.getLastColumn(), 8)).getDisplayValues()[0];
+  var oldSignature = ['Access Level','Category','Title','Description','URL','Button Label','Visible','Sort Order'].join('|');
+  if (oldHeaders.join('|') === oldSignature) {
+    sheet.insertColumnsAfter(6, 2);
+    sheet.insertColumnAfter(10);
+  }
+  sheet.getRange(1, 1, 1, RESOURCE_HEADERS.length).setValues([RESOURCE_HEADERS]);
   return sheet;
 }
 
@@ -1003,8 +1234,11 @@ function formatResourcesSheet_(sheet) {
   sheet.setColumnWidth(3, 230);
   sheet.setColumnWidth(4, 360);
   sheet.setColumnWidth(5, 300);
-  sheet.setColumnWidth(6, 130);
-  sheet.getRange(2, 7, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  sheet.setColumnWidth(6, 150);
+  sheet.setColumnWidth(7, 120);
+  sheet.setColumnWidth(8, 100);
+  sheet.setColumnWidth(11, 180);
+  sheet.getRange(2, 9, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
       .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
@@ -1012,17 +1246,6 @@ function formatResourcesSheet_(sheet) {
       .build()
   );
 }
-
-function addStarterResourceRows_(sheet) {
-  if (lastDataRowByKey_(sheet, 3) > 1) return;
-  sheet.getRange(2, 1, 4, RESOURCE_HEADERS.length).setValues([
-    ['ALL', 'Orientation', 'Start Here', 'Add the general student welcome guide or orientation file in this row.', '', 'Download Guide', true, 1],
-    ['STARTER', 'Course Materials', 'Starter Learning Manual', 'Add the Starter package manual, lesson files, or downloadable resources here.', '', 'Download Manual', true, 10],
-    ['PROFESSIONAL', 'Course Materials', 'Professional Learning Library', 'Add Professional package lessons, templates, coaching files, and updates here.', '', 'Download Materials', true, 20],
-    ['VIP', 'Executive Resources', 'VIP Executive Workspace', 'Add private strategy, consulting, team, and automation-audit files here.', '', 'Download Resources', true, 30]
-  ]);
-}
-
 
 function formatAssignmentsSheet_(sheet) {
   sheet.setFrozenRows(1);
@@ -1072,70 +1295,19 @@ function formatSubmissionsSheet_(sheet) {
   );
 }
 
-function addStarterAssignmentRows_(sheet) {
-  if (lastDataRowByKey_(sheet, 1) > 1) return;
-  sheet.getRange(2, 1, 4, ASSIGNMENT_HEADERS.length).setValues([
-    ['GENERAL-PRACTICE', 'ALL', 'AI Workflow Practice', 'Upload a short document showing one practical workflow you completed with an AI tool.', 'Follow the task instructions, label your work clearly, and upload one final version.', 'Complete / Revision Required / Approved', '', '.pdf,.doc,.docx', 10, true, 1],
-    ['STARTER-CAPSTONE', 'STARTER', 'Starter Capstone Project', 'Submit your completed Starter capstone using the assignment brief provided in your learning materials.', 'Use the Starter manual and demonstrate the prompt framework taught in class.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.zip', 10, true, 10],
-    ['PRO-CAPSTONE', 'PROFESSIONAL', 'Professional Capstone Project', 'Submit your complete professional workflow, supporting documentation, and any relevant output files.', 'Document your process, tools, prompts, outputs, and responsible-AI checks.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 20],
-    ['VIP-PROJECT', 'VIP', 'VIP Executive Project', 'Submit your strategy, automation audit, or team implementation project for review.', 'Present the business objective, implementation workflow, expected value, and governance considerations.', 'Attendance 75% or higher; required work complete; capstone approved.', '29 August 2026', '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip', 10, true, 30]
-  ]);
+function removeLegacyTestContent_(resourcesSheet, assignmentsSheet) {
+  deleteRowsByValue_(resourcesSheet, 3, ['Sample Course Material']);
+  deleteRowsByValue_(assignmentsSheet, 1, ['AI-EDUCATION-ESSAY']);
 }
 
-
-function upsertProvidedResource_(sheet) {
-  var title = 'Sample Course Material';
-  var values = ['ALL', 'Course Materials', title, 'A test learning material for verifying direct downloads in the student portal.', 'https://drive.google.com/file/d/1jPuZ3fZ5k08hjQso1v3cEa832KqnupbD/view?usp=drive_link', 'Download Material', true, 2];
-  var rowNumber = findExactRow_(sheet, 3, title);
-  if (rowNumber) sheet.getRange(rowNumber, 1, 1, RESOURCE_HEADERS.length).setValues([values]);
-  else sheet.appendRow(values);
-}
-
-function upsertProvidedAssignment_(sheet) {
-  var assignmentId = 'AI-EDUCATION-ESSAY';
-  var instructions = 'Write an expository essay explaining the advantages and disadvantages of using Artificial Intelligence in education. Clearly inform the reader about how AI is affecting student learning and teaching methods.';
-  var guidelines = [
-    'INTRODUCTION & THESIS',
-    'Keep the introduction short and focused. Avoid overly broad openings such as “Throughout history…”. End with a clear thesis that can be supported with specific evidence.',
-    '',
-    'BODY PARAGRAPHS',
-    'Develop one main point in each supporting paragraph and begin each paragraph with a clear topic sentence.',
-    '',
-    'EVIDENCE',
-    'Support every major point with specific examples or evidence. Explain how each example supports the overall argument rather than inserting evidence without analysis.',
-    '',
-    'STYLE & GRAMMAR',
-    'Use formal, precise language and favour active voice. Check carefully for run-on sentences, fragments, and incomplete sentences.',
-    '',
-    'PRESENTATION',
-    'Submit a highly legible final draft. It may be neatly written in ink and scanned, or computer-generated.'
-  ].join('\n');
-  var rubric = [
-    'TOTAL: 45 POINTS',
-    '',
-    'Content — 10 points',
-    '• Accurate, factual information — 5 points',
-    '• Focuses consistently on the assigned topic — 5 points',
-    '',
-    'Organization — 15 points',
-    '• Clear beginning, middle, and end — 5 points',
-    '• Clear main idea in each paragraph — 5 points',
-    '• Evidence arranged logically — 5 points',
-    '',
-    'Conventions — 5 points',
-    '• Very few grammatical or mechanical errors — 5 points',
-    '',
-    'Voice — 5 points',
-    '• Engaging, appropriate, and persuasive voice — 5 points',
-    '',
-    'Presentation — 10 points',
-    '• Final draft is highly legible — 5 points',
-    '• Neatly written in ink or computer-generated — 5 points'
-  ].join('\n');
-  var values = [assignmentId, 'ALL', 'Expository Essay: The Impact of Artificial Intelligence in Education', instructions, guidelines, rubric, '29 August 2026', '.pdf,.doc,.docx,.jpg,.jpeg,.png', 10, true, 5];
-  var rowNumber = findExactRow_(sheet, 1, assignmentId);
-  if (rowNumber) sheet.getRange(rowNumber, 1, 1, ASSIGNMENT_HEADERS.length).setValues([values]);
-  else sheet.appendRow(values);
+function deleteRowsByValue_(sheet, column, values) {
+  var wanted = values.map(function(value) { return String(value).toUpperCase(); });
+  var lastRow = lastDataRowByKey_(sheet, column);
+  if (lastRow < 2) return;
+  var rows = sheet.getRange(2, column, lastRow - 1, 1).getDisplayValues();
+  for (var index = rows.length - 1; index >= 0; index--) {
+    if (wanted.indexOf(String(rows[index][0]).trim().toUpperCase()) !== -1) sheet.deleteRow(index + 2);
+  }
 }
 
 function formatTimetableSheet_(sheet) {
@@ -1166,6 +1338,14 @@ function formatCertificatesSheet_(sheet) {
   styleAdminHeader_(sheet, CERTIFICATE_HEADERS.length, '#111111', '#ffffff');
   sheet.setColumnWidth(1, 190); sheet.setColumnWidth(2, 220); sheet.setColumnWidth(3, 180);
   sheet.setColumnWidth(5, 220); sheet.setColumnWidth(10, 300);
+}
+
+function formatContentUpdatesSheet_(sheet) {
+  styleAdminHeader_(sheet, CONTENT_UPDATE_HEADERS.length, '#f2b705', '#111111');
+  sheet.setColumnWidth(1, 150); sheet.setColumnWidth(2, 260); sheet.setColumnWidth(3, 520);
+  sheet.setColumnWidth(4, 300); sheet.setColumnWidth(5, 150); sheet.setColumnWidth(6, 120);
+  sheet.getRange(2,1,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['PROFESSIONAL','VIP','BOTH'],true).build());
+  sheet.getRange(2,6,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['DRAFT','SCHEDULED','SENT','CANCELLED'],true).build());
 }
 
 function styleAdminHeader_(sheet, length, background, color) {
@@ -1375,6 +1555,60 @@ function refreshPortalCache() {
   SpreadsheetApp.getUi().alert('Portal data cache cleared. Updated resources, timetable, checklist, guidelines, and settings will be visible on the next login.');
 }
 
+
+function installContentUpdateTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'processContentUpdates') ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger('processContentUpdates').timeBased().everyDays(1).atHour(10).create();
+  SpreadsheetApp.getUi().alert('Daily content-update trigger installed for approximately 10:00 AM WAT.');
+}
+
+function processContentUpdates() {
+  var ss=getSpreadsheet_();
+  var sheet=ss.getSheetByName(TREV.CONTENT_UPDATES_SHEET);
+  if (!sheet || sheet.getLastRow()<2) return;
+  var updates=getDataRows_(sheet,CONTENT_UPDATE_HEADERS.length,2);
+  var now=new Date();
+  updates.forEach(function(row,index) {
+    var status=clean_(row[5],30).toUpperCase();
+    var scheduled=row[4] instanceof Date?row[4]:new Date(row[4]);
+    if (status!=='SCHEDULED'||isNaN(scheduled.getTime())||scheduled.getTime()>now.getTime()) return;
+    var recipients=getUpdateRecipients_(clean_(row[0],30).toUpperCase(),now);
+    var quota=MailApp.getRemainingDailyQuota();
+    if (recipients.length>quota) {
+      sheet.getRange(index+2,6).setNote('Not sent: '+recipients.length+' recipients exceed remaining Gmail quota of '+quota+'.');
+      return;
+    }
+    var subject=clean_(row[1],180); var content=cleanMultiline_(row[2],10000); var resource=safeUrl_(row[3]);
+    var sent=0;
+    recipients.forEach(function(student) {
+      var text='Hi '+firstName_(student.name)+',\n\n'+content+(resource?'\n\nNew resource: '+resource:'')+'\n\n— TREV AI Support';
+      var html=emailShell_(subject,'<p>Hi '+escapeHtml_(firstName_(student.name))+',</p><div style="white-space:pre-line;line-height:1.65">'+escapeHtml_(content)+'</div>'+(resource?'<p><a href="'+escapeHtml_(resource)+'" style="display:inline-block;background:#f2b705;color:#111;text-decoration:none;font-weight:800;padding:12px 20px;border-radius:999px">Open New Resource</a></p>':''));
+      if (sendMailSafely_(student.email,subject,text,html)) sent++;
+    });
+    sheet.getRange(index+2,6,1,3).setValues([['SENT',sent,new Date()]]);
+  });
+}
+
+function getUpdateRecipients_(audience,now) {
+  var rows=getDataRows_(getRegistrationsSheet_(),REG_HEADERS.length,COL.REGISTRATION_ID);
+  var cutoff=new Date(now.getTime()); cutoff.setMonth(cutoff.getMonth()-24);
+  var seen={}; var result=[];
+  rows.forEach(function(row) {
+    if (clean_(row[COL.STATUS-1],30).toUpperCase()!=='APPROVED') return;
+    var key=clean_(row[COL.PACKAGE_KEY-1],30).toUpperCase();
+    var eligible=(audience==='BOTH'&&(key==='PROFESSIONAL'||key.indexOf('VIP_')===0))||(audience==='PROFESSIONAL'&&key==='PROFESSIONAL')||(audience==='VIP'&&key.indexOf('VIP_')===0);
+    if (!eligible) return;
+    var approved=row[COL.APPROVED_AT-1] instanceof Date?row[COL.APPROVED_AT-1]:new Date(row[COL.APPROVED_AT-1]);
+    if (!isNaN(approved.getTime())&&approved<cutoff) return;
+    var email=clean_(row[COL.EMAIL-1],120).toLowerCase();
+    if (!email||seen[email]) return;
+    seen[email]=true; result.push({email:email,name:clean_(row[COL.FULL_NAME-1],100)});
+  });
+  return result;
+}
+
 function verifyCertificate_(rawId) {
   var certificateId = clean_(rawId, 60).toUpperCase();
   if (!/^TREV-(STA|PRO|VIP)-2026-[0-9]{4,}$/.test(certificateId)) return { valid:false, status:'INVALID' };
@@ -1531,6 +1765,7 @@ function sendApprovalEmail_(name, email, registrationId, packageInfo, codes) {
     detailBox_([
       ['Registration ID', registrationId],
       ['Approved package', packageInfo.label],
+      ['Confirmed amount', packageInfo.price],
       ['Cohort begins', settingValue_('COHORT_START_DATE', '4 August 2026')],
       ['Class time', settingValue_('CLASS_TIME', 'To be announced after onboarding')],
       ['Support hours', community.supportHours]
@@ -1573,7 +1808,7 @@ function buildApprovalWhatsAppMessage_(name, packageInfo, codes) {
   return 'Hello ' + firstName_(name) + ', your payment has been confirmed and your ' +
     packageInfo.label + ' enrollment is approved.\n\n' +
     (isTeam ? 'Your five unique team access codes are:\n' : 'Your personal TREV AI access code is: ') + codeList +
-    '\n\nStudent portal: ' + TREV.PORTAL_URL + communityLine +
+    '\n\nConfirmed amount: *' + packageInfo.price + '*\n\nStudent portal: ' + TREV.PORTAL_URL + communityLine +
     '\n\nPlease keep each code private and assign one code per approved learner.\n\n' +
     '— TREV AI Support';
 }
@@ -1617,6 +1852,14 @@ function firstName_(name) {
 
 function clean_(value, maxLength) {
   return String(value == null ? '' : value).replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, maxLength || 500);
+}
+
+function cleanMultiline_(value, maxLength) {
+  return String(value == null ? '' : value)
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+    .trim()
+    .slice(0, maxLength || 10000);
 }
 
 function safeCell_(value) {

@@ -18,7 +18,12 @@
   const endpointIsConfigured = () =>
     /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(config.appsScriptUrl);
 
-  const getPackage = () => config.packages[packageSelect.value] || config.packages.professional;
+  const isEarlyBird = () => Date.now() <= new Date(config.pricing.earlyBirdEnds).getTime();
+  const getPackage = () => {
+    const base = config.packages[packageSelect.value] || config.packages.professional;
+    const early = isEarlyBird();
+    return { ...base, price: early ? base.earlyPrice : base.normalPrice, usd: early ? base.earlyUsd : base.normalUsd, early };
+  };
 
   const setText = (id, value) => {
     const element = document.getElementById(id);
@@ -30,6 +35,17 @@
     packageName.textContent = selected.label;
     packagePrice.textContent = selected.price;
     amountDue.textContent = selected.price;
+    document.querySelectorAll('[data-pricing-phase]').forEach((element) => {
+      element.textContent = selected.early ? 'Early-bird price — ends 28 July, 11:59 PM WAT' : 'Standard price';
+    });
+  };
+
+  const updatePackageOptions = () => {
+    const early = isEarlyBird();
+    Object.entries(config.packages).forEach(([value, item]) => {
+      const option = packageSelect.querySelector(`option[value="${value}"]`);
+      if (option) option.textContent = `${item.label} — ${early ? item.earlyPrice : item.normalPrice}`;
+    });
   };
 
   const selectPackageFromUrl = () => {
@@ -173,5 +189,6 @@
     }
   });
 
+  updatePackageOptions();
   selectPackageFromUrl();
 })();

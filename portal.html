@@ -33,12 +33,17 @@
       </button>
       <nav class="primary-nav" id="primary-nav" aria-label="Main Directory">
         <ul class="nav-links">
-          <li><a href="index.html" class="nav-link">Home</a></li>
-          <li><a href="course.html#modules" class="nav-link">Syllabus</a></li>
-          <li><a href="pricing.html#pricing" class="nav-link">Pricing</a></li>
-          <li><a href="register.html" class="nav-link">Register</a></li>
-          <li><a href="contact.html#contact" class="nav-link">Support</a></li>
-          <li><a href="portal.html" class="nav-link active" aria-current="page">Student Portal</a></li>
+          <li class="mobile-nav-only"><a href="index.html" class="nav-link">Home</a></li>
+          <li class="mobile-nav-only"><a href="course.html" class="nav-link">Course</a></li>
+          <li class="mobile-nav-only"><a href="pricing.html#pricing" class="nav-link">Pricing</a></li>
+          <li class="mobile-nav-only"><a href="contact.html#contact" class="nav-link">Contact</a></li>
+          <li class="mobile-nav-only"><a href="portal.html" class="nav-link">Student Portal</a></li>
+          <li class="desktop-nav-only"><a href="index.html" class="nav-link">Home</a></li>
+          <li class="desktop-nav-only"><a href="course.html#modules" class="nav-link">Syllabus</a></li>
+          <li class="desktop-nav-only"><a href="pricing.html#pricing" class="nav-link">Pricing</a></li>
+          <li class="desktop-nav-only"><a href="register.html" class="nav-link">Register</a></li>
+          <li class="desktop-nav-only"><a href="contact.html#contact" class="nav-link">Support</a></li>
+          <li class="desktop-nav-only"><a href="portal.html" class="nav-link active" aria-current="page">Student Portal</a></li>
         </ul>
         <div class="nav-cta"><a href="register.html" class="btn btn-primary btn-sm">Enroll Now</a></div>
       </nav>
@@ -127,6 +132,21 @@
           </div>
           <div id="portalResources" class="portal-resources" aria-live="polite"></div>
 
+          <div class="dashboard-heading portal-section-heading" id="promptLibrarySection">
+            <span class="section-tag">Package Prompt Library</span>
+            <h2>Your prompt library</h2>
+            <p>Search, filter, copy, and download the prompt collection created for your package.</p>
+          </div>
+          <div class="prompt-library-toolbar">
+            <input id="promptSearch" class="form-input" type="search" placeholder="Search prompts and use cases…" aria-label="Search prompt library">
+            <select id="promptCategory" class="form-input" aria-label="Filter prompt category"><option value="">All categories</option></select>
+            <a id="promptPdfDownload" class="btn btn-outline btn-sm" href="#" download>Download Prompt PDF</a>
+            <a id="vipTemplatesDownload" class="btn btn-secondary btn-sm" href="assets/vip-templates/trev-ai-vip-template-suite.zip" download hidden>Download VIP Templates</a>
+          </div>
+          <p id="promptResultCount" class="prompt-result-count" aria-live="polite"></p>
+          <div id="promptLibrary" class="prompt-library"></div>
+          <button id="promptLoadMore" class="btn btn-outline prompt-load-more" type="button" hidden>Load More Prompts</button>
+
           <div class="dashboard-heading portal-section-heading">
             <span class="section-tag">Practical Work</span>
             <h2>Your assignments</h2>
@@ -150,6 +170,17 @@
         </div>
       </div>
     </section>
+
+    <div id="videoModal" class="assignment-modal video-modal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle" hidden>
+      <div class="assignment-modal-backdrop" data-close-video-modal></div>
+      <div class="assignment-modal-panel video-modal-panel">
+        <div class="assignment-modal-header">
+          <div><span class="section-tag">Course Video</span><h2 id="videoModalTitle">Watch Video</h2></div>
+          <button id="videoModalClose" type="button" class="assignment-modal-close" aria-label="Close video">×</button>
+        </div>
+        <iframe id="videoFrame" title="Course video player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
 
     <div id="assignmentUploadModal" class="assignment-modal" role="dialog" aria-modal="true" aria-labelledby="assignmentModalTitle" hidden>
       <div class="assignment-modal-backdrop" data-close-assignment-modal></div>

@@ -1,0 +1,806 @@
+{
+  "tier": "starter",
+  "count": 50,
+  "prompts": [
+    {
+      "id": "STA-001",
+      "title": "Explain a difficult concept",
+      "category": "Learning & Study",
+      "useCase": "Use this when you need to explain a difficult concept within learning & study.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me explain a difficult concept.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to learning & study.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Explain a difficult concept for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-002",
+      "title": "Create a study plan",
+      "category": "Learning & Study",
+      "useCase": "Use this when you need to create a study plan within learning & study.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a study plan.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to learning & study.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a study plan for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-003",
+      "title": "Build revision questions",
+      "category": "Learning & Study",
+      "useCase": "Use this when you need to build revision questions within learning & study.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me build revision questions.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to learning & study.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Build revision questions for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-004",
+      "title": "Compare two ideas",
+      "category": "Learning & Study",
+      "useCase": "Use this when you need to compare two ideas within learning & study.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me compare two ideas.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to learning & study.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Compare two ideas for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-005",
+      "title": "Turn notes into flashcards",
+      "category": "Learning & Study",
+      "useCase": "Use this when you need to turn notes into flashcards within learning & study.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me turn notes into flashcards.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to learning & study.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Turn notes into flashcards for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-006",
+      "title": "Plan beginner research",
+      "category": "Research",
+      "useCase": "Use this when you need to plan beginner research within research.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me plan beginner research.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to research.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Plan beginner research for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-007",
+      "title": "Summarize a source",
+      "category": "Research",
+      "useCase": "Use this when you need to summarize a source within research.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me summarize a source.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to research.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Summarize a source for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-008",
+      "title": "Create research questions",
+      "category": "Research",
+      "useCase": "Use this when you need to create research questions within research.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create research questions.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to research.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create research questions for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-009",
+      "title": "Check claim quality",
+      "category": "Research",
+      "useCase": "Use this when you need to check claim quality within research.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me check claim quality.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to research.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Check claim quality for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-010",
+      "title": "Organize findings",
+      "category": "Research",
+      "useCase": "Use this when you need to organize findings within research.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me organize findings.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to research.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Organize findings for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-011",
+      "title": "Draft an essay outline",
+      "category": "Writing",
+      "useCase": "Use this when you need to draft an essay outline within writing.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me draft an essay outline.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to writing.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Draft an essay outline for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-012",
+      "title": "Improve a paragraph",
+      "category": "Writing",
+      "useCase": "Use this when you need to improve a paragraph within writing.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me improve a paragraph.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to writing.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Improve a paragraph for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-013",
+      "title": "Rewrite for clarity",
+      "category": "Writing",
+      "useCase": "Use this when you need to rewrite for clarity within writing.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me rewrite for clarity.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to writing.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Rewrite for clarity for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-014",
+      "title": "Generate headline options",
+      "category": "Writing",
+      "useCase": "Use this when you need to generate headline options within writing.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me generate headline options.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to writing.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Generate headline options for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-015",
+      "title": "Proofread a document",
+      "category": "Writing",
+      "useCase": "Use this when you need to proofread a document within writing.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me proofread a document.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to writing.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Proofread a document for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-016",
+      "title": "Plan a productive day",
+      "category": "Productivity",
+      "useCase": "Use this when you need to plan a productive day within productivity.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me plan a productive day.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to productivity.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Plan a productive day for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-017",
+      "title": "Prioritize a task list",
+      "category": "Productivity",
+      "useCase": "Use this when you need to prioritize a task list within productivity.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me prioritize a task list.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to productivity.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Prioritize a task list for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-018",
+      "title": "Create a weekly routine",
+      "category": "Productivity",
+      "useCase": "Use this when you need to create a weekly routine within productivity.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a weekly routine.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to productivity.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a weekly routine for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-019",
+      "title": "Break down a large task",
+      "category": "Productivity",
+      "useCase": "Use this when you need to break down a large task within productivity.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me break down a large task.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to productivity.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Break down a large task for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-020",
+      "title": "Prepare a meeting agenda",
+      "category": "Productivity",
+      "useCase": "Use this when you need to prepare a meeting agenda within productivity.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me prepare a meeting agenda.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to productivity.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Prepare a meeting agenda for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-021",
+      "title": "Write a professional email",
+      "category": "Communication",
+      "useCase": "Use this when you need to write a professional email within communication.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me write a professional email.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to communication.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Write a professional email for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-022",
+      "title": "Respond politely to feedback",
+      "category": "Communication",
+      "useCase": "Use this when you need to respond politely to feedback within communication.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me respond politely to feedback.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to communication.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Respond politely to feedback for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-023",
+      "title": "Create a clear announcement",
+      "category": "Communication",
+      "useCase": "Use this when you need to create a clear announcement within communication.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a clear announcement.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to communication.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a clear announcement for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-024",
+      "title": "Prepare interview answers",
+      "category": "Communication",
+      "useCase": "Use this when you need to prepare interview answers within communication.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me prepare interview answers.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to communication.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Prepare interview answers for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-025",
+      "title": "Simplify a technical message",
+      "category": "Communication",
+      "useCase": "Use this when you need to simplify a technical message within communication.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me simplify a technical message.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to communication.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Simplify a technical message for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-026",
+      "title": "Generate content ideas",
+      "category": "Creative Work",
+      "useCase": "Use this when you need to generate content ideas within creative work.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me generate content ideas.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to creative work.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Generate content ideas for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-027",
+      "title": "Develop a story concept",
+      "category": "Creative Work",
+      "useCase": "Use this when you need to develop a story concept within creative work.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me develop a story concept.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to creative work.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Develop a story concept for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-028",
+      "title": "Create a simple campaign",
+      "category": "Creative Work",
+      "useCase": "Use this when you need to create a simple campaign within creative work.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a simple campaign.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to creative work.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a simple campaign for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-029",
+      "title": "Brainstorm project names",
+      "category": "Creative Work",
+      "useCase": "Use this when you need to brainstorm project names within creative work.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me brainstorm project names.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to creative work.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Brainstorm project names for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-030",
+      "title": "Improve a creative brief",
+      "category": "Creative Work",
+      "useCase": "Use this when you need to improve a creative brief within creative work.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me improve a creative brief.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to creative work.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Improve a creative brief for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-031",
+      "title": "Improve a CV summary",
+      "category": "Career Development",
+      "useCase": "Use this when you need to improve a cv summary within career development.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me improve a cv summary.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to career development.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Improve a CV summary for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-032",
+      "title": "Prepare for an interview",
+      "category": "Career Development",
+      "useCase": "Use this when you need to prepare for an interview within career development.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me prepare for an interview.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to career development.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Prepare for an interview for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-033",
+      "title": "Identify transferable skills",
+      "category": "Career Development",
+      "useCase": "Use this when you need to identify transferable skills within career development.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me identify transferable skills.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to career development.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Identify transferable skills for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-034",
+      "title": "Create a learning roadmap",
+      "category": "Career Development",
+      "useCase": "Use this when you need to create a learning roadmap within career development.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a learning roadmap.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to career development.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a learning roadmap for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-035",
+      "title": "Draft a cover letter",
+      "category": "Career Development",
+      "useCase": "Use this when you need to draft a cover letter within career development.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me draft a cover letter.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to career development.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Draft a cover letter for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-036",
+      "title": "Compare available options",
+      "category": "Everyday Decisions",
+      "useCase": "Use this when you need to compare available options within everyday decisions.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me compare available options.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to everyday decisions.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Compare available options for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-037",
+      "title": "Create a buying checklist",
+      "category": "Everyday Decisions",
+      "useCase": "Use this when you need to create a buying checklist within everyday decisions.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create a buying checklist.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to everyday decisions.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create a buying checklist for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-038",
+      "title": "Plan a personal project",
+      "category": "Everyday Decisions",
+      "useCase": "Use this when you need to plan a personal project within everyday decisions.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me plan a personal project.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to everyday decisions.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Plan a personal project for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-039",
+      "title": "Evaluate pros and cons",
+      "category": "Everyday Decisions",
+      "useCase": "Use this when you need to evaluate pros and cons within everyday decisions.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me evaluate pros and cons.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to everyday decisions.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Evaluate pros and cons for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-040",
+      "title": "Ask better follow-up questions",
+      "category": "Everyday Decisions",
+      "useCase": "Use this when you need to ask better follow-up questions within everyday decisions.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me ask better follow-up questions.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to everyday decisions.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Ask better follow-up questions for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-041",
+      "title": "Explain an AI tool",
+      "category": "Digital Literacy",
+      "useCase": "Use this when you need to explain an ai tool within digital literacy.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me explain an ai tool.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to digital literacy.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Explain an AI tool for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-042",
+      "title": "Create safe account instructions",
+      "category": "Digital Literacy",
+      "useCase": "Use this when you need to create safe account instructions within digital literacy.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me create safe account instructions.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to digital literacy.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Create safe account instructions for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-043",
+      "title": "Compare free AI platforms",
+      "category": "Digital Literacy",
+      "useCase": "Use this when you need to compare free ai platforms within digital literacy.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me compare free ai platforms.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to digital literacy.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Compare free AI platforms for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-044",
+      "title": "Build a tool checklist",
+      "category": "Digital Literacy",
+      "useCase": "Use this when you need to build a tool checklist within digital literacy.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me build a tool checklist.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to digital literacy.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Build a tool checklist for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-045",
+      "title": "Understand AI limitations",
+      "category": "Digital Literacy",
+      "useCase": "Use this when you need to understand ai limitations within digital literacy.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me understand ai limitations.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to digital literacy.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Understand AI limitations for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-046",
+      "title": "Check for hallucinations",
+      "category": "Responsible AI",
+      "useCase": "Use this when you need to check for hallucinations within responsible ai.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me check for hallucinations.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to responsible ai.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Check for hallucinations for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-047",
+      "title": "Protect private information",
+      "category": "Responsible AI",
+      "useCase": "Use this when you need to protect private information within responsible ai.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me protect private information.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to responsible ai.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Protect private information for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-048",
+      "title": "Identify possible bias",
+      "category": "Responsible AI",
+      "useCase": "Use this when you need to identify possible bias within responsible ai.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me identify possible bias.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to responsible ai.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Identify possible bias for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-049",
+      "title": "Add source-verification steps",
+      "category": "Responsible AI",
+      "useCase": "Use this when you need to add source-verification steps within responsible ai.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me add source-verification steps.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to responsible ai.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Add source-verification steps for a growing Nigerian education or technology organization."
+    },
+    {
+      "id": "STA-050",
+      "title": "Review AI output responsibly",
+      "category": "Responsible AI",
+      "useCase": "Use this when you need to review ai output responsibly within responsible ai.",
+      "prompt": "Act as a patient, practical AI learning assistant. Help me review ai output responsibly.\n\nCONTEXT\n- My situation: [DESCRIBE THE SITUATION]\n- My current knowledge: [BEGINNER / SOME EXPERIENCE]\n- My goal: [DESIRED RESULT]\n- Audience: [WHO WILL USE THE RESULT]\n\nINSTRUCTIONS\n1. Ask up to three short clarifying questions if important information is missing.\n2. Explain the task in plain language without unnecessary jargon.\n3. Produce a clear step-by-step response relevant to responsible ai.\n4. Include one practical example.\n5. Highlight anything I should verify independently.\n\nOUTPUT\nUse short headings, bullet points, and a final “Next Action” section.",
+      "variables": [
+        "SITUATION",
+        "CURRENT KNOWLEDGE",
+        "GOAL",
+        "AUDIENCE"
+      ],
+      "expectedOutput": "A structured, actionable response with clear assumptions, recommendations, implementation steps, and verification checks.",
+      "refinement": "Review the output as a critical expert. Identify weak assumptions, unsupported claims, missing evidence, and impractical recommendations. Then produce a stronger second version.",
+      "example": "Example goal: Review AI output responsibly for a growing Nigerian education or technology organization."
+    }
+  ]
+}

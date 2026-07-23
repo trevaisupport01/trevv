@@ -48,6 +48,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const primaryNav = document.getElementById('primary-nav');
 
   if (menuToggle && primaryNav) {
+    const navBackdrop = document.createElement('button');
+    navBackdrop.type = 'button';
+    navBackdrop.className = 'nav-backdrop';
+    navBackdrop.setAttribute('aria-label', 'Close navigation menu');
+    document.body.appendChild(navBackdrop);
+
     const toggleMenu = (forceClose = false) => {
       const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
       const shouldOpen = forceClose ? false : !isExpanded;
@@ -55,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
       menuToggle.setAttribute('aria-expanded', shouldOpen);
       primaryNav.classList.toggle('active', shouldOpen);
       menuToggle.classList.toggle('open', shouldOpen);
+      navBackdrop.classList.toggle('active', shouldOpen);
+      document.body.classList.toggle('nav-open', shouldOpen);
 
       const bars = menuToggle.querySelectorAll('.bar');
       if (shouldOpen) {
@@ -69,6 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     menuToggle.addEventListener('click', () => toggleMenu());
+    navBackdrop.addEventListener('click', () => toggleMenu(true));
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 1180 && primaryNav.classList.contains('active')) toggleMenu(true);
+    }, { passive: true });
 
     // Close menu on navigation link clicks
     navLinks.forEach(link => {
@@ -251,42 +263,56 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // 7. TIMEZONE-AWARE COUNTDOWN SYSTEM
+  // 7. FIXED WAT EARLY-BIRD + COHORT COUNTDOWN
   const daysEl = document.getElementById('days');
   const hoursEl = document.getElementById('hours');
   const minutesEl = document.getElementById('minutes');
   const secondsEl = document.getElementById('seconds');
+  const countdownTitle = document.getElementById('countdownTitle');
+  const countdownDescription = document.getElementById('countdownDescription');
+  const countdownGrid = document.getElementById('countdownGrid');
+  const countdownExpired = document.getElementById('countdownExpired');
+  const EARLY_BIRD_END = new Date('2026-07-28T23:59:59+01:00').getTime();
+  const COHORT_START = new Date('2026-08-04T00:00:00+01:00').getTime();
 
-  // Dynamic future target timeline (exactly 14 days from active system load date)
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() + 14);
-
-  const processTimer = () => {
-    const now = new Date().getTime();
-    const distance = targetDate.getTime() - now;
-
-    if (distance < 0) {
-      const zeros = '00';
-      if (daysEl) daysEl.innerText = zeros;
-      if (hoursEl) hoursEl.innerText = zeros;
-      if (minutesEl) minutesEl.innerText = zeros;
-      if (secondsEl) secondsEl.innerText = zeros;
-      return;
-    }
-
-    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-    if (daysEl) daysEl.innerText = days.toString().padStart(2, '0');
-    if (hoursEl) hoursEl.innerText = hours.toString().padStart(2, '0');
-    if (minutesEl) minutesEl.innerText = minutes.toString().padStart(2, '0');
-    if (secondsEl) secondsEl.innerText = seconds.toString().padStart(2, '0');
+  const setTimerValues = (distance) => {
+    const days = Math.floor(distance / 86400000);
+    const hours = Math.floor((distance % 86400000) / 3600000);
+    const minutes = Math.floor((distance % 3600000) / 60000);
+    const seconds = Math.floor((distance % 60000) / 1000);
+    if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+    if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+    if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
+    if (secondsEl) secondsEl.textContent = String(seconds).padStart(2, '0');
   };
 
-  setInterval(processTimer, 1000);
-  processTimer();
+  const processTimer = () => {
+    if (!countdownGrid) return;
+    const now = Date.now();
+    if (now <= EARLY_BIRD_END) {
+      countdownGrid.hidden = false;
+      countdownExpired.hidden = true;
+      countdownTitle.textContent = 'Early-Bird Registration Ends In';
+      countdownDescription.textContent = 'Register by 28 July at 11:59 PM WAT to secure early-bird pricing.';
+      setTimerValues(Math.max(0, EARLY_BIRD_END - now));
+    } else if (now < COHORT_START) {
+      countdownGrid.hidden = false;
+      countdownExpired.hidden = true;
+      countdownTitle.textContent = 'The August Cohort Begins In';
+      countdownDescription.textContent = 'Registration continues at standard pricing until the cohort begins.';
+      setTimerValues(Math.max(0, COHORT_START - now));
+    } else {
+      countdownGrid.hidden = true;
+      countdownExpired.hidden = false;
+      countdownTitle.textContent = 'Next Cohort Coming Soon';
+      countdownDescription.textContent = 'Join the waitlist to receive the next cohort dates and early enrollment information.';
+    }
+  };
+
+  if (countdownGrid) {
+    window.setInterval(processTimer, 1000);
+    processTimer();
+  }
 
 
   // 8. BACK TO TOP VISIBILITY CONTROLLER
@@ -411,57 +437,86 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // 11. HERO DOT DRIFT + TWINKLE
+  // 11. HERO AI DATA-FLOW FIELD + DESKTOP CURSOR ATTRACTION
   const heroScatter = document.querySelector('.hero-scatter');
 
   if (heroScatter && !prefersReducedMotion) {
     const dots = Array.from(heroScatter.querySelectorAll('circle'));
-    const mobileDots = window.matchMedia('(max-width: 768px)').matches;
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    const pointerFine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    let heroVisible = true;
+    let animationFrame = null;
+    let animationStart = performance.now();
+    let pointer = null;
 
-    // Small deterministic pseudo-random values keep the animation organic
-    // without changing on every refresh or requiring a heavy animation loop.
     const seeded = (index, salt) => {
       const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
       return value - Math.floor(value);
     };
 
-    dots.forEach((dot, index) => {
-      const shouldAnimate = mobileDots ? index % 4 === 0 : index % 2 === 0;
-      if (!shouldAnimate) return;
-
-      const angle = seeded(index, 1) * Math.PI * 2;
-      const distance = 4 + seeded(index, 2) * 7;
-      const baseOpacity = Math.max(0.18, parseFloat(dot.getAttribute('opacity') || '0.55'));
-      const minOpacity = Math.max(0.1, baseOpacity * (0.42 + seeded(index, 3) * 0.18));
-      const maxOpacity = Math.min(0.95, Math.max(baseOpacity, baseOpacity * 1.18));
-
-      dot.classList.add('ambient-dot');
-      dot.style.setProperty('--dot-drift-x', `${(Math.cos(angle) * distance).toFixed(2)}px`);
-      dot.style.setProperty('--dot-drift-y', `${(Math.sin(angle) * distance).toFixed(2)}px`);
-      dot.style.setProperty('--dot-drift-duration', `${(7 + seeded(index, 4) * 8).toFixed(2)}s`);
-      dot.style.setProperty('--dot-drift-delay', `${(-seeded(index, 5) * 10).toFixed(2)}s`);
-      dot.style.setProperty('--dot-twinkle-duration', `${(3.5 + seeded(index, 6) * 5).toFixed(2)}s`);
-      dot.style.setProperty('--dot-twinkle-delay', `${(-seeded(index, 7) * 8).toFixed(2)}s`);
-      dot.style.setProperty('--dot-opacity-min', minOpacity.toFixed(2));
-      dot.style.setProperty('--dot-opacity-max', maxOpacity.toFixed(2));
+    const dotData = dots.map((dot, index) => {
+      const active = mobile ? index % 2 === 0 : true;
+      const layer = index % 3;
+      const isGold = (dot.getAttribute('fill') || dot.getAttribute('stroke') || '').includes('accent');
+      dot.classList.toggle('data-flow-dot', active);
+      dot.classList.toggle('data-packet-dot', active && isGold && index % 4 === 0);
+      return {
+        dot, active, layer, isPacket: isGold && index % 4 === 0,
+        cx: parseFloat(dot.getAttribute('cx') || '0'), cy: parseFloat(dot.getAttribute('cy') || '0'),
+        phase: seeded(index, 1) * Math.PI * 2,
+        amplitude: 16 + layer * 12 + seeded(index, 2) * 10,
+        speed: (0.00011 + layer * 0.000055) * (isGold && index % 4 === 0 ? 1.75 : 1)
+      };
     });
 
-    // The whole field also moves at 15% of scroll speed, independently of
-    // the per-dot ambient motion above.
-    let parallaxTicking = false;
-    const updateHeroParallax = () => {
-      const offset = Math.min(window.scrollY * 0.15, 160);
-      heroScatter.style.transform = `translate3d(0, ${offset}px, 0)`;
-      parallaxTicking = false;
+    const pointerToViewBox = (event) => {
+      const rect = heroScatter.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      return { x: (event.clientX - rect.left) * (1600 / rect.width), y: (event.clientY - rect.top) * (700 / rect.height) };
     };
 
-    window.addEventListener('scroll', () => {
-      if (!parallaxTicking) {
-        window.requestAnimationFrame(updateHeroParallax);
-        parallaxTicking = true;
-      }
-    }, { passive: true });
-    updateHeroParallax();
+    if (pointerFine) {
+      heroScatter.closest('.hero-section')?.addEventListener('pointermove', (event) => { pointer = pointerToViewBox(event); }, { passive: true });
+      heroScatter.closest('.hero-section')?.addEventListener('pointerleave', () => { pointer = null; }, { passive: true });
+    }
+
+    const animateDataFlow = (timestamp) => {
+      if (!heroVisible) { animationFrame = null; return; }
+      const elapsed = timestamp - animationStart;
+      dotData.forEach((item) => {
+        if (!item.active) return;
+        const wave = Math.sin(item.phase + elapsed * item.speed);
+        const flowX = wave * item.amplitude;
+        const flowY = wave * item.amplitude * 0.48;
+        let attractX = 0, attractY = 0;
+        if (pointer && pointerFine) {
+          const currentX = item.cx + flowX, currentY = item.cy + flowY;
+          const dx = pointer.x - currentX, dy = pointer.y - currentY;
+          const distance = Math.hypot(dx, dy);
+          const radius = 190;
+          if (distance > 0 && distance < radius) {
+            const strength = (1 - distance / radius) * 10;
+            attractX = (dx / distance) * strength;
+            attractY = (dy / distance) * strength;
+          }
+        }
+        item.dot.style.transform = `translate3d(${(flowX + attractX).toFixed(2)}px, ${(flowY + attractY).toFixed(2)}px, 0)`;
+      });
+      animationFrame = requestAnimationFrame(animateDataFlow);
+    };
+
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        heroVisible = entry.isIntersecting;
+        heroScatter.classList.toggle('flow-active', heroVisible);
+        if (heroVisible && !animationFrame) {
+          animationStart = performance.now();
+          animationFrame = requestAnimationFrame(animateDataFlow);
+        }
+      });
+    }, { threshold: 0.05 });
+    visibilityObserver.observe(heroScatter.closest('.hero-section'));
+    animationFrame = requestAnimationFrame(animateDataFlow);
   }
 
 

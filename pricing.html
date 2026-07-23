@@ -90,14 +90,19 @@
 
       <nav class="primary-nav" id="primary-nav" aria-label="Main Directory">
         <ul class="nav-links">
-          <li><a href="index.html#about" class="nav-link">About</a></li>
-          <li><a href="course.html#why-learn-ai" class="nav-link">Why Learn AI</a></li>
-          <li><a href="course.html#features" class="nav-link">Features</a></li>
-          <li><a href="course.html#modules" class="nav-link">Syllabus</a></li>
-          <li><a href="#pricing" class="nav-link">Pricing</a></li>
-          <li><a href="#faq" class="nav-link">FAQ</a></li>
-          <li><a href="contact.html#contact" class="nav-link">Contact</a></li>
-          <li><a href="portal.html" class="nav-link">Student Portal</a></li>
+          <li class="mobile-nav-only"><a href="index.html" class="nav-link">Home</a></li>
+          <li class="mobile-nav-only"><a href="course.html" class="nav-link">Course</a></li>
+          <li class="mobile-nav-only"><a href="pricing.html#pricing" class="nav-link">Pricing</a></li>
+          <li class="mobile-nav-only"><a href="contact.html#contact" class="nav-link">Contact</a></li>
+          <li class="mobile-nav-only"><a href="portal.html" class="nav-link">Student Portal</a></li>
+          <li class="desktop-nav-only"><a href="index.html#about" class="nav-link">About</a></li>
+          <li class="desktop-nav-only"><a href="course.html#why-learn-ai" class="nav-link">Why Learn AI</a></li>
+          <li class="desktop-nav-only"><a href="course.html#features" class="nav-link">Features</a></li>
+          <li class="desktop-nav-only"><a href="course.html#modules" class="nav-link">Syllabus</a></li>
+          <li class="desktop-nav-only"><a href="#pricing" class="nav-link">Pricing</a></li>
+          <li class="desktop-nav-only"><a href="#faq" class="nav-link">FAQ</a></li>
+          <li class="desktop-nav-only"><a href="contact.html#contact" class="nav-link">Contact</a></li>
+          <li class="desktop-nav-only"><a href="portal.html" class="nav-link">Student Portal</a></li>
         </ul>
         <div class="nav-cta">
           <a href="#pricing" class="btn btn-primary btn-sm">Enroll Now</a>
@@ -117,83 +122,82 @@
           <p class="section-desc">Select the plan that fits your goals. Start mastering practical AI operations today.</p>
         </div>
 
+        <div class="pricing-status-banner" id="pricingStatusBanner">
+          <span>EARLY-BIRD PRICING</span>
+          <strong>Ends 28 July 2026 at 11:59 PM WAT</strong>
+        </div>
+
         <div class="grid-3 mt-md align-stretch">
-          
-          <!-- Starter Plan -->
-          <div class="pricing-card scroll-reveal">
+          <div class="pricing-card scroll-reveal" data-package-card="starter">
+            <div class="early-price-badge">Early Bird</div>
             <div class="pricing-header">
               <h3>Starter</h3>
-              <p class="plan-desc">Perfect for individuals wanting to master foundational AI tools.</p>
-              <div class="price">
-                <span class="currency">₦</span><span class="amount">10,000</span>
-                <span class="period">/one-time</span>
-              </div>
-              <p class="price-usd">≈ $7 USD — for diaspora / international payment</p>
+              <p class="plan-desc">For beginners who want to use AI confidently for learning, research, writing, and everyday productivity—without coding.</p>
+              <div class="price"><span class="currency">₦</span><span class="amount js-price">8,000</span><span class="period">/one-time</span></div>
+              <p class="price-usd js-usd">≈ $6 USD — international reference</p>
+              <p class="normal-price-note">Normal price: <span class="js-normal-price">₦10,000</span></p>
             </div>
             <ul class="plan-features">
-              <li><span class="bullet" aria-hidden="true">✓</span> Sessions 1 to 4</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Core Prompt Toolkit</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Secure Digital Certificate</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> 3-Month Platform Access</li>
-              <li class="disabled"><span class="bullet" aria-hidden="true">✗</span> Weekly Live Q&As</li>
-              <li class="disabled"><span class="bullet" aria-hidden="true">✗</span> Private Community Access</li>
+              <li><span class="bullet">✓</span> 4 live foundational AI sessions</li>
+              <li><span class="bullet">✓</span> ChatGPT, Claude, Gemini & NotebookLM</li>
+              <li><span class="bullet">✓</span> 50-prompt Starter Library + PDF</li>
+              <li><span class="bullet">✓</span> Practical assignments and feedback</li>
+              <li><span class="bullet">✓</span> TrevAI Starters community</li>
+              <li><span class="bullet">✓</span> 3-month portal and material access</li>
+              <li><span class="bullet">✓</span> Certificate eligibility</li>
             </ul>
-            <div class="pricing-footer">
-              <a href="register.html?package=starter" class="btn btn-outline btn-full">Register for Starter</a>
-            </div>
+            <div class="pricing-footer"><a href="register.html?package=starter" class="btn btn-outline btn-full">Register for Starter</a></div>
           </div>
 
-          <!-- Professional Plan -->
-          <div class="pricing-card featured scroll-reveal delay-1">
-            <div class="featured-badge">Highly Recommended</div>
+          <div class="pricing-card featured scroll-reveal delay-1" data-package-card="professional">
+            <div class="featured-badge">Most Popular</div>
+            <div class="early-price-badge">Early Bird</div>
             <div class="pricing-header">
               <h3>Professional</h3>
-              <p class="plan-desc">For power users, designers, and creators wanting complete automation mastery.</p>
-              <div class="price">
-                <span class="currency">₦</span><span class="amount">35,000</span>
-                <span class="period">/one-time</span>
-              </div>
-              <p class="price-usd">≈ $25 USD — for diaspora / international payment</p>
+              <p class="plan-desc">For professionals and creators ready to build advanced prompting, research, content, image, video, and no-code automation workflows.</p>
+              <div class="price"><span class="currency">₦</span><span class="amount js-price">30,000</span><span class="period">/one-time</span></div>
+              <p class="price-usd js-usd">≈ $22 USD — international reference</p>
+              <p class="normal-price-note">Normal price: <span class="js-normal-price">₦35,000</span></p>
             </div>
             <ul class="plan-features">
-              <li><span class="bullet" aria-hidden="true">✓</span> All 7 Core Sessions</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Image & Video Generation</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Verifiable Digital Certificate</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> 24-Month Material Updates</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Private Circle Community</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Weekly Live Coaching & Reviews</li>
+              <li><span class="bullet">✓</span> All 7 applied AI sessions</li>
+              <li><span class="bullet">✓</span> Advanced prompting, research, image & video</li>
+              <li><span class="bullet">✓</span> Custom assistants and no-code automation</li>
+              <li><span class="bullet">✓</span> 150-prompt Professional Library + PDF</li>
+              <li><span class="bullet">✓</span> Assignments, tracking and instructor feedback</li>
+              <li><span class="bullet">✓</span> TrevAI Professionals community</li>
+              <li><span class="bullet">✓</span> 24-month material and email updates</li>
+              <li><span class="bullet">✓</span> Verifiable certificate eligibility</li>
             </ul>
-            <div class="pricing-footer">
-              <a href="register.html?package=professional" class="btn btn-primary btn-full">Register for Professional</a>
-            </div>
+            <div class="pricing-footer"><a href="register.html?package=professional" class="btn btn-primary btn-full">Register for Professional</a></div>
           </div>
 
-          <!-- VIP Executive Plan -->
-          <div class="pricing-card scroll-reveal delay-2">
+          <div class="pricing-card scroll-reveal delay-2" data-package-card="vip-seat">
+            <div class="early-price-badge">Early Bird</div>
             <div class="pricing-header">
               <h3>VIP Executive</h3>
-              <p class="plan-desc">Best for founders, teams, and corporate group onboarding.</p>
-              <div class="price">
-                <span class="currency">₦</span><span class="amount">75,000</span>
-                <span class="period">/seat</span>
-              </div>
-              <p class="price-usd">≈ $54 USD/seat — for diaspora / international payment</p>
-              <p class="price-alt">Or ₦250,000 flat for a team of 5 (≈ $181 USD) — a 33% discount per seat</p>
+              <p class="plan-desc">For founders, executives, and teams applying AI to business strategy, operations, proposals, automation, and organizational growth.</p>
+              <div class="price"><span class="currency">₦</span><span class="amount js-price">70,000</span><span class="period">/seat</span></div>
+              <p class="price-usd js-usd">≈ $51 USD/seat — international reference</p>
+              <p class="normal-price-note">Normal seat price: <span class="js-normal-price">₦75,000</span></p>
+              <p class="price-alt">Team early bird: <strong class="js-team-price">₦225,000</strong> for up to 5 learners <span class="js-team-normal">(normal ₦250,000)</span></p>
             </div>
             <ul class="plan-features">
-              <li><span class="bullet" aria-hidden="true">✓</span> Complete Professional Package</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> 1-on-1 Strategy Session</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Custom Automation Audit</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Direct Consultant Support</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Team Project Collaboration</li>
-              <li><span class="bullet" aria-hidden="true">✓</span> Custom Team Landing Page</li>
+              <li><span class="bullet">✓</span> 7 executive-focused AI sessions</li>
+              <li><span class="bullet">✓</span> 300-prompt Executive Library + PDF</li>
+              <li><span class="bullet">✓</span> VIP Business & Proposal Template Suite</li>
+              <li><span class="bullet">✓</span> Private 1-on-1 strategy session</li>
+              <li><span class="bullet">✓</span> Automation audit and implementation roadmap</li>
+              <li><span class="bullet">✓</span> Priority consultant and team guidance</li>
+              <li><span class="bullet">✓</span> TrevAI Executives community</li>
+              <li><span class="bullet">✓</span> 24-month executive updates</li>
+              <li><span class="bullet">✓</span> Verifiable VIP certificate eligibility</li>
             </ul>
             <div class="pricing-footer pricing-footer-options">
               <a href="register.html?package=vip-seat" class="btn btn-outline btn-full">Register for a VIP Seat</a>
-              <a href="register.html?package=vip-team" class="pricing-team-link">Register a team of up to 5 — ₦250,000</a>
+              <a href="register.html?package=vip-team" class="pricing-team-link">Register a Team of Up to 5</a>
             </div>
           </div>
-
         </div>
       </div>
     </section>
@@ -264,7 +268,7 @@
             </button>
             <div class="accordion-panel" id="faq-5-panel" hidden>
               <div class="accordion-content">
-                <p>Our Professional and VIP plans include lifetime access, meaning you can return to the syllabus, community space, and new updates whenever you need.</p>
+                <p>Starter includes 3 months of portal and material access. Professional and VIP include 24 months of package materials and content-update emails from the enrollment-approval date.</p>
               </div>
             </div>
           </div>
@@ -418,5 +422,7 @@
   <button id="backToTop" class="back-to-top" aria-label="Scroll to top of the page">↑</button>
 
   <script src="js/script.js" defer></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/pricing.js" defer></script>
 </body>
 </html>

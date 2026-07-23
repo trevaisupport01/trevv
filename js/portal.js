@@ -16,11 +16,22 @@
   const onboardingContainer = document.getElementById('portalOnboarding');
   const timetableContainer = document.getElementById('portalTimetable');
   const guidelinesContainer = document.getElementById('portalGuidelines');
+  const promptLibraryContainer = document.getElementById('promptLibrary');
+  const promptSearch = document.getElementById('promptSearch');
+  const promptCategory = document.getElementById('promptCategory');
+  const promptPdfDownload = document.getElementById('promptPdfDownload');
+  const vipTemplatesDownload = document.getElementById('vipTemplatesDownload');
+  const promptResultCount = document.getElementById('promptResultCount');
+  const promptLoadMore = document.getElementById('promptLoadMore');
   const logoutButton = document.getElementById('portalLogout');
   const assignmentModal = document.getElementById('assignmentUploadModal');
   const assignmentFrame = document.getElementById('assignmentUploadFrame');
   const assignmentModalTitle = document.getElementById('assignmentModalTitle');
   const assignmentModalClose = document.getElementById('assignmentModalClose');
+  const videoModal = document.getElementById('videoModal');
+  const videoFrame = document.getElementById('videoFrame');
+  const videoModalTitle = document.getElementById('videoModalTitle');
+  const videoModalClose = document.getElementById('videoModalClose');
   const STORAGE_KEY = 'trevStudentAccessCode';
   let currentAccessCode = '';
   let modalTrigger = null;
@@ -114,6 +125,22 @@
     window.setTimeout(() => frame.remove(), 60000);
   };
 
+  const openVideoModal = (resource) => {
+    const url = validResourceUrl(resource.url || '');
+    if (!url) return;
+    videoModalTitle.textContent = resource.title || 'Course Video';
+    videoFrame.src = url;
+    videoModal.hidden = false;
+    document.body.classList.add('modal-open');
+    videoModalClose.focus();
+  };
+
+  const closeVideoModal = () => {
+    videoModal.hidden = true;
+    videoFrame.src = 'about:blank';
+    document.body.classList.remove('modal-open');
+  };
+
   const renderResources = (resources) => {
     resourcesContainer.replaceChildren();
 
@@ -142,20 +169,21 @@
       items.forEach((resource) => {
         const card = createElement('article', 'portal-resource-card');
         const availableUrl = validResourceUrl(resource.url || '');
-        const status = createElement(
-          'span',
-          `resource-status ${availableUrl ? 'available' : 'coming-soon'}`,
-          availableUrl ? (resource.download ? 'Ready to download' : 'Available') : 'Coming soon'
-        );
-        card.append(
-          status,
-          createElement('h4', '', resource.title || 'Course resource'),
-          createElement('p', '', resource.description || '')
-        );
+        const availabilityText = resource.video ? 'Ready to watch' : resource.download ? 'Ready to download' : 'Available';
+        const status = createElement('span', `resource-status ${availableUrl ? 'available' : 'coming-soon'}`, availableUrl ? availabilityText : 'Coming soon');
+        card.append(status, createElement('h4', '', resource.title || 'Course resource'), createElement('p', '', resource.description || ''));
+        if (resource.fileSize || resource.materialType) {
+          card.appendChild(createElement('span', 'resource-meta', [resource.materialType, resource.fileSize].filter(Boolean).join(' · ')));
+        }
 
         if (availableUrl) {
-          const defaultLabel = resource.download ? 'Download Resource' : 'Open Resource';
-          if (resource.download) {
+          const defaultLabel = resource.video ? 'Watch Video' : resource.download ? 'Download Resource' : 'Open Resource';
+          if (resource.video) {
+            const button = createElement('button', 'btn btn-primary btn-sm resource-action', resource.buttonLabel || defaultLabel);
+            button.type = 'button';
+            button.addEventListener('click', () => openVideoModal(resource));
+            card.appendChild(button);
+          } else if (resource.download) {
             const button = createElement('button', 'btn btn-outline btn-sm resource-action download-action', resource.buttonLabel || defaultLabel);
             button.type = 'button';
             button.addEventListener('click', () => triggerDirectDownload(availableUrl, resource.title));
@@ -459,6 +487,75 @@
     });
   };
 
+
+  let allPrompts = [];
+  let filteredPrompts = [];
+  let visiblePromptCount = 0;
+
+  const copyPromptText = async (text, button) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch (_) {
+      const area=document.createElement('textarea'); area.value=text; area.style.position='fixed'; area.style.opacity='0';
+      document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
+    }
+    const original=button.textContent; button.textContent='Copied';
+    window.setTimeout(()=>{button.textContent=original;},1500);
+  };
+
+  const createPromptCard = (entry) => {
+    const card=createElement('article','prompt-card');
+    const top=createElement('div','prompt-card-top');
+    top.append(createElement('span','prompt-id',entry.id||''),createElement('span','prompt-category-label',entry.category||''));
+    card.append(top,createElement('h3','',entry.title||'Prompt'),createElement('p','prompt-use-case',entry.useCase||''));
+    const details=createElement('details','prompt-details');
+    details.appendChild(createElement('summary','','View Prompt'));
+    const body=createElement('div','prompt-body');
+    body.append(createElement('pre','prompt-text',entry.prompt||''));
+    if (entry.variables?.length) body.appendChild(createElement('p','prompt-notes',`Variables: ${entry.variables.join(', ')}`));
+    body.appendChild(createElement('p','prompt-notes',`Expected output: ${entry.expectedOutput||''}`));
+    body.appendChild(createElement('p','prompt-notes',`Refinement: ${entry.refinement||''}`));
+    const copy=createElement('button','btn btn-primary btn-sm','Copy Prompt'); copy.type='button'; copy.addEventListener('click',()=>copyPromptText(entry.prompt||'',copy));
+    body.appendChild(copy); details.appendChild(body); card.appendChild(details); return card;
+  };
+
+  const drawPromptResults = (reset=true) => {
+    if (reset) { promptLibraryContainer.replaceChildren(); visiblePromptCount=0; }
+    const next=filteredPrompts.slice(visiblePromptCount,visiblePromptCount+20);
+    next.forEach((entry)=>promptLibraryContainer.appendChild(createPromptCard(entry)));
+    visiblePromptCount+=next.length;
+    promptResultCount.textContent=`Showing ${visiblePromptCount} of ${filteredPrompts.length} prompts`;
+    promptLoadMore.hidden=visiblePromptCount>=filteredPrompts.length;
+  };
+
+  const filterPrompts = () => {
+    const query=promptSearch.value.trim().toLowerCase(); const category=promptCategory.value;
+    filteredPrompts=allPrompts.filter((entry)=>{
+      const matchesCategory=!category||entry.category===category;
+      const haystack=`${entry.title} ${entry.category} ${entry.useCase} ${entry.prompt}`.toLowerCase();
+      return matchesCategory&&(!query||haystack.includes(query));
+    });
+    drawPromptResults(true);
+  };
+
+  const renderPromptLibrary = async (accessLevel) => {
+    const tier=accessLevel==='STARTER'?'starter':accessLevel==='PROFESSIONAL'?'professional':'vip';
+    const pdfs={starter:'trev-ai-starter-prompt-library.pdf',professional:'trev-ai-professional-prompt-library.pdf',vip:'trev-ai-vip-prompt-library.pdf'};
+    promptPdfDownload.href=`assets/prompt-libraries/${pdfs[tier]}`;
+    vipTemplatesDownload.hidden=tier!=='vip';
+    promptLibraryContainer.replaceChildren(createElement('div','portal-empty-state compact','Loading prompt library…'));
+    try {
+      const response=await fetch(`assets/prompt-libraries/${tier}.json`,{cache:'no-store'});
+      if(!response.ok) throw new Error('Prompt library unavailable');
+      const data=await response.json(); allPrompts=Array.isArray(data.prompts)?data.prompts:[];
+      promptCategory.replaceChildren(new Option('All categories',''));
+      [...new Set(allPrompts.map((entry)=>entry.category))].sort().forEach((category)=>promptCategory.add(new Option(category,category)));
+      filteredPrompts=allPrompts.slice(); drawPromptResults(true);
+    } catch (_) {
+      promptLibraryContainer.replaceChildren(createElement('div','portal-empty-state','The prompt library could not be loaded. Refresh the page or download the PDF version.'));
+      promptResultCount.textContent=''; promptLoadMore.hidden=true;
+    }
+  };
+
   const renderDashboard = (response, code, options = {}) => {
     currentAccessCode = code;
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
@@ -472,6 +569,7 @@
     renderAssignments(response.assignments, response.submissions);
     renderSubmissions(response.submissions);
     renderGuidelines(response.communityGuidelines || []);
+    if (!allPrompts.length || !options.refresh) renderPromptLibrary(response.package.accessLevel);
 
     if (rememberInput.checked) localStorage.setItem(STORAGE_KEY, code);
     else localStorage.removeItem(STORAGE_KEY);
@@ -537,6 +635,7 @@
     codeInput.value = '';
     rememberInput.checked = false;
     closeAssignmentModal();
+    closeVideoModal();
     dashboard.hidden = true;
     loginPanel.hidden = false;
     loginMessage.hidden = true;
@@ -546,8 +645,11 @@
 
   assignmentModalClose.addEventListener('click', closeAssignmentModal);
   assignmentModal.querySelector('[data-close-assignment-modal]').addEventListener('click', closeAssignmentModal);
+  videoModalClose.addEventListener('click', closeVideoModal);
+  videoModal.querySelector('[data-close-video-modal]').addEventListener('click', closeVideoModal);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !assignmentModal.hidden) closeAssignmentModal();
+    if (event.key === 'Escape' && !videoModal.hidden) closeVideoModal();
   });
 
   window.addEventListener('message', (event) => {
@@ -560,6 +662,10 @@
       verifyCode(currentAccessCode, { refresh: true });
     }, 900);
   });
+
+  promptSearch.addEventListener('input', filterPrompts);
+  promptCategory.addEventListener('change', filterPrompts);
+  promptLoadMore.addEventListener('click', () => drawPromptResults(false));
 
   const savedCode = localStorage.getItem(STORAGE_KEY);
   if (savedCode) {
