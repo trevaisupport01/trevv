@@ -27,6 +27,7 @@ var TREV = {
   SETTINGS_SHEET: 'Portal Settings',
   CERTIFICATES_SHEET: 'Certificates',
   CONTENT_UPDATES_SHEET: 'Content Updates',
+  ATTENDANCE_SHEET: 'Attendance',
   UPLOAD_ROOT_FOLDER: 'TREV AI Assignment Uploads',
   MATERIAL_ROOT_FOLDER: 'TREV AI Course Materials',
   MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
@@ -129,6 +130,17 @@ var CERTIFICATE_HEADERS = [
   'Issue Date',
   'Status',
   'PDF URL'
+];
+
+var ATTENDANCE_HEADERS = [
+  'Date',
+  'Session',
+  'Access Level',
+  'Registration ID',
+  'Student Name',
+  'Present',
+  'Minutes Attended',
+  'Notes'
 ];
 
 var CONTENT_UPDATE_HEADERS = [
@@ -286,6 +298,7 @@ function setupTrevSystem() {
   var settings = getOrCreateSheet_(ss, TREV.SETTINGS_SHEET, SETTING_HEADERS);
   var certificates = getOrCreateSheet_(ss, TREV.CERTIFICATES_SHEET, CERTIFICATE_HEADERS);
   var contentUpdates = getOrCreateSheet_(ss, TREV.CONTENT_UPDATES_SHEET, CONTENT_UPDATE_HEADERS);
+  var attendance = getOrCreateSheet_(ss, TREV.ATTENDANCE_SHEET, ATTENDANCE_HEADERS);
 
   formatRegistrationsSheet_(registrations);
   formatResourcesSheet_(resources);
@@ -297,6 +310,7 @@ function setupTrevSystem() {
   formatSettingsSheet_(settings);
   formatCertificatesSheet_(certificates);
   formatContentUpdatesSheet_(contentUpdates);
+  formatAttendanceSheet_(attendance);
   removeLegacyTestContent_(resources, assignments);
   addTimetableRows_(timetable);
   addChecklistRows_(checklist);
@@ -595,6 +609,7 @@ function verifyAccessCode_(rawCode) {
     resources: staticPortal.resources,
     assignments: staticPortal.assignments,
     submissions: getSubmissionsForRegistration_(registrationId),
+    progress: getStudentProgress_(registrationId, packageInfo.accessLevel),
     timetable: staticPortal.timetable,
     onboarding: staticPortal.onboarding,
     communityGuidelines: staticPortal.communityGuidelines,
@@ -1340,6 +1355,13 @@ function formatCertificatesSheet_(sheet) {
   sheet.setColumnWidth(5, 220); sheet.setColumnWidth(10, 300);
 }
 
+function formatAttendanceSheet_(sheet) {
+  styleAdminHeader_(sheet, ATTENDANCE_HEADERS.length, '#111111', '#ffffff');
+  sheet.setColumnWidth(1, 120); sheet.setColumnWidth(2, 180); sheet.setColumnWidth(3, 130);
+  sheet.setColumnWidth(4, 190); sheet.setColumnWidth(5, 220); sheet.setColumnWidth(7, 130); sheet.setColumnWidth(8, 320);
+  sheet.getRange(2,6,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+}
+
 function formatContentUpdatesSheet_(sheet) {
   styleAdminHeader_(sheet, CONTENT_UPDATE_HEADERS.length, '#f2b705', '#111111');
   sheet.setColumnWidth(1, 150); sheet.setColumnWidth(2, 260); sheet.setColumnWidth(3, 520);
@@ -1513,6 +1535,63 @@ function getCommunityInfo_(accessLevel) {
     classLinkPolicy: settingValue_('CLASS_LINK_POLICY', ''),
     recordingPolicy: settingValue_('RECORDING_POLICY', ''),
     privateMessagePolicy: settingValue_('PRIVATE_MESSAGE_POLICY', '')
+  };
+}
+
+
+function getStudentProgress_(registrationId, accessLevel) {
+  var requiredSessions = accessLevel === 'STARTER' ? 4 : 7;
+  var attendanceSheet = getSpreadsheet_().getSheetByName(TREV.ATTENDANCE_SHEET);
+  var attendedLabels = [];
+  if (attendanceSheet) {
+    getDataRows_(attendanceSheet, ATTENDANCE_HEADERS.length, 4).forEach(function(row) {
+      var present = row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
+      if (String(row[3]) === registrationId && present) {
+        var label = clean_(row[1], 120);
+        if (label && attendedLabels.indexOf(label) === -1) attendedLabels.push(label);
+      }
+    });
+  }
+  var lessonsCompleted = Math.min(requiredSessions, attendedLabels.length);
+  var attendancePercent = Math.min(100, Math.round((lessonsCompleted / requiredSessions) * 100));
+
+  var assignments = getAssignmentsForLevel_(accessLevel);
+  var submissions = getSubmissionsForRegistration_(registrationId);
+  var approvedIds = [];
+  var capstoneApproved = false;
+  submissions.forEach(function(submission) {
+    if (clean_(submission.status, 40).toUpperCase() === 'APPROVED') {
+      if (approvedIds.indexOf(submission.assignmentId) === -1) approvedIds.push(submission.assignmentId);
+      var combined = (submission.assignmentId + ' ' + submission.assignmentTitle).toUpperCase();
+      if (/CAPSTONE|FINAL|VIP-PROJECT/.test(combined)) capstoneApproved = true;
+    }
+  });
+  var requiredAssignments = assignments.length;
+  var approvedAssignments = assignments.filter(function(item) { return approvedIds.indexOf(item.id) !== -1; }).length;
+  var assignmentPercent = requiredAssignments ? Math.min(100, Math.round((approvedAssignments / requiredAssignments) * 100)) : 0;
+
+  var certificate = null;
+  var certificatesSheet = getSpreadsheet_().getSheetByName(TREV.CERTIFICATES_SHEET);
+  if (certificatesSheet) {
+    getDataRows_(certificatesSheet, CERTIFICATE_HEADERS.length, 1).some(function(row) {
+      if (String(row[2]) === registrationId) {
+        certificate = { id:clean_(row[0],60), issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80), status:clean_(row[8],30)||'ISSUED' };
+        return true;
+      }
+      return false;
+    });
+  }
+  return {
+    requiredSessions:requiredSessions,
+    lessonsCompleted:lessonsCompleted,
+    attendancePercent:attendancePercent,
+    attendedSessions:attendedLabels,
+    requiredAssignments:requiredAssignments,
+    approvedAssignments:approvedAssignments,
+    assignmentPercent:assignmentPercent,
+    capstoneApproved:capstoneApproved,
+    certificateEligible:attendancePercent >= 75 && capstoneApproved,
+    certificate:certificate
   };
 }
 

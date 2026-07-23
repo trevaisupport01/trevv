@@ -98,6 +98,21 @@
             <button id="portalLogout" type="button" class="btn btn-outline btn-sm">Sign Out</button>
           </div>
 
+          <section class="learning-overview" aria-labelledby="learningOverviewTitle">
+            <div class="progress-ring-card">
+              <div class="progress-ring" id="overallProgressRing" style="--progress:0"><span id="overallProgressValue">0%</span></div>
+              <div><span class="section-tag">Overall Progress</span><h2 id="learningOverviewTitle">Your learning journey</h2><p id="progressSummary">Complete onboarding, attend sessions, submit assignments and pass your capstone.</p></div>
+            </div>
+            <button id="continueLearningButton" class="btn btn-primary continue-learning-button" type="button">Continue Learning <span>→</span></button>
+          </section>
+
+          <div class="progress-metric-grid">
+            <article><span>SESSIONS</span><strong id="progressLessons">0 / 0</strong><small>Attended</small></article>
+            <article><span>ASSIGNMENTS</span><strong id="progressAssignments">0 / 0</strong><small>Approved</small></article>
+            <article><span>NEXT LIVE CLASS</span><strong id="progressNextClass">To be announced</strong><small id="progressNextClassDate">Check timetable</small></article>
+            <article><span>CERTIFICATE</span><strong id="progressCertificate">Not yet eligible</strong><small id="progressCertificateDetail">75% attendance + approved capstone</small></article>
+          </div>
+
           <div class="dashboard-meta-grid">
             <div class="dashboard-meta-card"><span>Approved package</span><strong id="studentPackage">—</strong></div>
             <div class="dashboard-meta-card"><span>Registration ID</span><strong id="studentRegistrationId">—</strong></div>
@@ -110,6 +125,12 @@
             <p>Your official group, support hours, and class-link policy.</p>
           </div>
           <div id="portalCommunity" class="portal-community" aria-live="polite"></div>
+
+          <aside class="portal-instructor-panel">
+            <img src="assets/images/daniel-gbenga-480.webp" alt="Olutimehin Daniel Gbenga, Founder and Lead Instructor" width="480" height="600" loading="lazy">
+            <div><span class="section-tag">Your Instructor</span><h3>Olutimehin Daniel Gbenga</h3><p>Founder and Lead Instructor, TREV AI Academy</p><p id="instructorOfficeHours">Package support hours appear in your community card.</p></div>
+            <a href="https://wa.me/2348139908559?text=Hello%20TREV%20AI%20Support" class="btn btn-outline btn-sm" target="_blank" rel="noopener">Contact Support</a>
+          </aside>
 
           <div class="dashboard-heading portal-section-heading">
             <span class="section-tag">Onboarding</span>

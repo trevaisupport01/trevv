@@ -42,6 +42,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('scroll', handleHeaderScroll, { passive: true });
 
+  const pageProgressBar = document.getElementById('pageProgressBar');
+  if (pageProgressBar) {
+    const updatePageProgress = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollable > 0 ? Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100)) : 0;
+      pageProgressBar.style.width = `${progress}%`;
+    };
+    window.addEventListener('scroll', updatePageProgress, { passive: true });
+    window.addEventListener('resize', updatePageProgress, { passive: true });
+    updatePageProgress();
+  }
+
 
   // 2. MOBILE ACCESSIBLE MENU TOGGLE
   const menuToggle = document.querySelector('.menu-toggle');

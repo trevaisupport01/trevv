@@ -32,9 +32,14 @@
   const videoFrame = document.getElementById('videoFrame');
   const videoModalTitle = document.getElementById('videoModalTitle');
   const videoModalClose = document.getElementById('videoModalClose');
+  const continueLearningButton = document.getElementById('continueLearningButton');
   const STORAGE_KEY = 'trevStudentAccessCode';
   let currentAccessCode = '';
   let modalTrigger = null;
+  let currentProgressData = null;
+  let currentOnboardingRatio = 0;
+  let currentTimetable = [];
+  let currentSubmissions = [];
 
   if (!config || !loginForm) return;
 
@@ -344,6 +349,51 @@
   };
 
 
+
+  const scrollToPortalSection = (id) => {
+    const element=document.getElementById(id);
+    if (element) element.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+
+  const updateDashboardProgress = () => {
+    const progress=currentProgressData||{};
+    const onboardingScore=currentOnboardingRatio*10;
+    const attendanceScore=(Number(progress.attendancePercent||0)/100)*30;
+    const assignmentScore=(Number(progress.assignmentPercent||0)/100)*35;
+    const capstoneScore=progress.capstoneApproved?25:0;
+    const total=Math.min(100,Math.round(onboardingScore+attendanceScore+assignmentScore+capstoneScore));
+    const ring=document.getElementById('overallProgressRing');
+    ring.style.setProperty('--progress',total);
+    document.getElementById('overallProgressValue').textContent=`${total}%`;
+    document.getElementById('progressLessons').textContent=`${progress.lessonsCompleted||0} / ${progress.requiredSessions||0}`;
+    document.getElementById('progressAssignments').textContent=`${progress.approvedAssignments||0} / ${progress.requiredAssignments||0}`;
+
+    const next=currentTimetable.find((entry)=>!String(entry.status||'').toUpperCase().includes('COMPLETED'))||currentTimetable[0];
+    document.getElementById('progressNextClass').textContent=next?.title||'To be announced';
+    document.getElementById('progressNextClassDate').textContent=next?`${next.date} · ${next.classTime}`:'Check timetable';
+
+    const certificateLabel=document.getElementById('progressCertificate');
+    const certificateDetail=document.getElementById('progressCertificateDetail');
+    if (progress.certificate) {
+      certificateLabel.textContent='Issued'; certificateDetail.textContent=progress.certificate.id||'Certificate available';
+    } else if (progress.certificateEligible) {
+      certificateLabel.textContent='Eligible'; certificateDetail.textContent='Awaiting certificate issue';
+    } else if ((progress.attendancePercent||0)<75) {
+      certificateLabel.textContent='Attendance pending'; certificateDetail.textContent=`${progress.attendancePercent||0}% of 75% required`;
+    } else if (!progress.capstoneApproved) {
+      certificateLabel.textContent='Capstone pending'; certificateDetail.textContent='Submit and pass your capstone';
+    }
+
+    let target='portalResources'; let label='Continue Learning';
+    if (currentOnboardingRatio<1) { target='portalOnboarding'; label='Continue Onboarding'; }
+    else if (currentSubmissions.some((item)=>String(item.status).toUpperCase()==='REVISION REQUESTED')) { target='portalSubmissions'; label='Review Instructor Feedback'; }
+    else if ((progress.approvedAssignments||0)<(progress.requiredAssignments||0)) { target='portalAssignments'; label='Continue with Assignments'; }
+    else if (next) { target='portalTimetable'; label='View Next Live Class'; }
+    continueLearningButton.dataset.target=target;
+    continueLearningButton.firstChild.textContent=label+' ';
+    document.getElementById('progressSummary').textContent=total===100?'Your course requirements are complete.':`${total}% complete across onboarding, attendance, assignments and capstone.`;
+  };
+
   const renderCommunity = (community, cohort) => {
     communityContainer.replaceChildren();
     const card = createElement('article', 'community-card');
@@ -380,6 +430,8 @@
     });
     card.appendChild(facts);
     communityContainer.appendChild(card);
+    const officeHours=document.getElementById('instructorOfficeHours');
+    if (officeHours) officeHours.textContent=`Support hours: ${community?.supportHours||'See your community card'}`;
   };
 
   const renderOnboarding = (items, registrationId) => {
@@ -428,6 +480,8 @@
       const total = items.length;
       text.textContent = `${done} of ${total} onboarding steps completed`;
       fill.style.width = `${Math.round((done / total) * 100)}%`;
+      currentOnboardingRatio = total ? done / total : 0;
+      updateDashboardProgress();
     };
     onboardingContainer.append(progress, list);
     updateProgress();
@@ -453,8 +507,15 @@
     timetableContainer.appendChild(summary);
 
     const list = createElement('div', 'timetable-list');
+    const attended = currentProgressData?.attendedSessions || [];
+    let currentAssigned = false;
     timetable.forEach((entry) => {
-      const row = createElement('article', 'timetable-row');
+      const isCompleted = attended.some((label) => label === entry.session || label === entry.title || label.includes(entry.session));
+      const isCore = String(entry.activityType || '').toLowerCase().includes('core') || String(entry.session || '').toLowerCase().includes('session');
+      const isCurrent = !isCompleted && !currentAssigned && isCore;
+      if (isCurrent) currentAssigned = true;
+      const state = isCompleted ? 'completed' : isCurrent ? 'current' : 'upcoming';
+      const row = createElement('article', `timetable-row roadmap-${state}`);
       const date = createElement('div', 'timetable-date');
       date.append(createElement('strong', '', entry.date || ''), createElement('span', '', entry.day || ''));
       const detail = createElement('div', 'timetable-detail');
@@ -463,7 +524,7 @@
         createElement('h3', '', entry.title || 'Class Session'),
         createElement('p', '', `${entry.classTime || 'Time TBA'} · ${entry.duration || '90 minutes'}`)
       );
-      const status = createElement('span', 'timetable-status', entry.status || 'UPCOMING');
+      const status = createElement('span', 'timetable-status', isCompleted ? 'COMPLETED' : isCurrent ? 'CURRENT' : 'UPCOMING');
       row.append(date, detail, status);
       list.appendChild(row);
     });
@@ -558,6 +619,9 @@
 
   const renderDashboard = (response, code, options = {}) => {
     currentAccessCode = code;
+    currentProgressData = response.progress || {};
+    currentTimetable = response.timetable || [];
+    currentSubmissions = response.submissions || [];
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
     document.getElementById('studentRegistrationId').textContent = response.student.registrationId || '—';
     document.getElementById('studentPackage').textContent = response.package.label || response.package.key || 'Enrolled Package';
@@ -569,6 +633,7 @@
     renderAssignments(response.assignments, response.submissions);
     renderSubmissions(response.submissions);
     renderGuidelines(response.communityGuidelines || []);
+    updateDashboardProgress();
     if (!allPrompts.length || !options.refresh) renderPromptLibrary(response.package.accessLevel);
 
     if (rememberInput.checked) localStorage.setItem(STORAGE_KEY, code);
@@ -663,6 +728,7 @@
     }, 900);
   });
 
+  continueLearningButton.addEventListener('click', () => scrollToPortalSection(continueLearningButton.dataset.target || 'portalResources'));
   promptSearch.addEventListener('input', filterPrompts);
   promptCategory.addEventListener('change', filterPrompts);
   promptLoadMore.addEventListener('click', () => drawPromptResults(false));
