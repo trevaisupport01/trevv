@@ -1630,6 +1630,7 @@ textarea:focus-visible {
     box-shadow: var(--shadow-md);
     transform: translateY(-150%);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transition: var(--transition-smooth);
   }
@@ -1637,6 +1638,7 @@ textarea:focus-visible {
   .primary-nav.active {
     transform: translateY(0);
     opacity: 1;
+    visibility: visible;
     pointer-events: all;
   }
 
@@ -3934,3 +3936,10 @@ body.nav-open { overflow: hidden; }
   .progress-ring-card { flex-direction:column; }
   .progress-metric-grid { grid-template-columns:minmax(0,1fr); }
 }
+
+
+/* November enrollment facts; inherit the existing restrained palette. */
+[hidden] { display: none !important; }
+.cohort-dates { display:flex; gap: .65rem 1.5rem; flex-wrap:wrap; margin:1rem 0 1.25rem; font-size:.92rem; }
+.cohort-dates strong { color:var(--text); }
+.cohort-dates > span { color:var(--text-muted, #656565); }
