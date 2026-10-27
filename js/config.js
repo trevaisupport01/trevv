@@ -3,10 +3,17 @@ window.TREV_CONFIG = Object.freeze({
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbz_oyQWP8kZ4lWjChn0V2GDC2DzILmyMhA9scAjlp_W_2Yyb_08icF0UDPgPskfLq85zg/exec',
   supportEmail: 'trevaisupport01@gmail.com',
   supportWhatsApp: '2348139908559',
-  portalUrl: 'https://trevaisupport01.github.io/Trev/portal.html',
+  portalUrl: 'https://trevv-nu.vercel.app/portal.html',
+  cohort: Object.freeze({
+    startsAt: '2026-11-09T00:00:00+01:00',
+    closesAt: '2026-11-06T23:59:59.999+01:00',
+    timetableConfirmed: false,
+    verificationMinutes: 10
+  }),
   pricing: Object.freeze({
+    earlyBirdEnabled: false,
     earlyBirdEnds: '2026-07-28T23:59:59+01:00',
-    cohortStarts: '2026-08-04T00:00:00+01:00'
+    cohortStarts: '2026-11-09T00:00:00+01:00'
   }),
   bank: Object.freeze({
     name: 'OPAY',
@@ -32,3 +39,4 @@ window.TREV_CONFIG = Object.freeze({
     })
   })
 });
+

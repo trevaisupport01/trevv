@@ -13,7 +13,7 @@
 var TREV = {
   ADMIN_EMAIL: 'trevaisupport01@gmail.com',
   SUPPORT_WHATSAPP: '2348139908559',
-  PORTAL_URL: 'https://trevaisupport01.github.io/Trev/portal.html',
+  PORTAL_URL: 'https://trevv-nu.vercel.app/portal.html',
   BANK_NAME: 'OPAY',
   ACCOUNT_NAME: 'DANIEL GBENGA OLUTIMEHIN',
   ACCOUNT_NUMBER: '6109478874',
@@ -32,10 +32,8 @@ var TREV = {
   MATERIAL_ROOT_FOLDER: 'TREV AI Course Materials',
   MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
   MAX_MATERIAL_BYTES: 20 * 1024 * 1024,
-  COHORT_START: '2026-08-04',
-  CAPSTONE_DEADLINE: '2026-08-29',
-  CERTIFICATE_RELEASE: '2026-08-31',
-  CLASS_DURATION_MINUTES: 90,
+  COHORT_START: '2026-11-09',
+  ENROLLMENT_END: '2026-11-06',
   TIMEZONE: 'Africa/Lagos'
 };
 
@@ -140,7 +138,8 @@ var ATTENDANCE_HEADERS = [
   'Student Name',
   'Present',
   'Minutes Attended',
-  'Notes'
+  'Notes',
+  'Completed'
 ];
 
 var CONTENT_UPDATE_HEADERS = [
@@ -229,6 +228,46 @@ function packageWithPrice_(packageInfo, capturedPrice) {
   return copy;
 }
 
+/** Never use the effective user here: public web-app requests execute as owner. */
+function requireAdmin_() {
+  var email = '';
+  try { email = Session.getActiveUser().getEmail(); } catch (ignored) {}
+  if (!email || String(email).trim().toLowerCase() !== String(TREV.ADMIN_EMAIL).trim().toLowerCase()) {
+    throw new Error('Administrator sign-in required. Open the source Google Sheet using the configured administrator account.');
+  }
+}
+
+function enrollmentIsOpen_(now) {
+  var deadline = new Date(TREV.ENROLLMENT_END + 'T23:59:59.999+01:00');
+  return !isNaN(deadline.getTime()) && now.getTime() <= deadline.getTime();
+}
+
+/** Approved At cells are Dates written by approval, or an explicit ISO timestamp. */
+function approvalDate_(value, now) {
+  var date = value instanceof Date ? new Date(value.getTime()) :
+    (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value.trim()) ? new Date(value) : null);
+  return date && !isNaN(date.getTime()) && date.getTime() <= now.getTime() ? date : null;
+}
+
+/** Calendar months in WAT, clamped to the last day of the target month. */
+function addAccessMonths_(date, months) {
+  var watOffset = 60 * 60 * 1000;
+  var watDate = new Date(date.getTime() + watOffset);
+  var target = new Date(Date.UTC(watDate.getUTCFullYear(), watDate.getUTCMonth() + months, 1));
+  var lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), Math.min(watDate.getUTCDate(), lastDay),
+    watDate.getUTCHours(), watDate.getUTCMinutes(), watDate.getUTCSeconds(), watDate.getUTCMilliseconds()) - watOffset);
+}
+
+function accessWindow_(row, packageInfo, now) {
+  var approved = approvalDate_(row[COL.APPROVED_AT - 1], now);
+  if (!approved) return { valid:false, status:'APPROVAL_REVIEW' };
+  var expires = addAccessMonths_(approved, packageInfo.accessLevel === 'STARTER' ? 3 : 24);
+  return now.getTime() < expires.getTime()
+    ? { valid:true, expiresAt:expires.toISOString() }
+    : { valid:false, status:'EXPIRED' };
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('TREV Registration')
@@ -280,8 +319,9 @@ function onEdit(e) {
   }
 }
 
-/** Run once before deploying the Web App. Safe to run again. */
+/** Initialize a new workbook. For an existing November rollout, use upgradeNovemberCohort(). */
 function setupTrevSystem() {
+  requireAdmin_();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) throw new Error('Open this script from a Google Sheet, then run setupTrevSystem again.');
 
@@ -333,6 +373,59 @@ function setupTrevSystem() {
     'Next: Deploy > New deployment > Web app. Execute as Me and allow access to Anyone. Copy the /exec URL into js/config.js on the website.',
     SpreadsheetApp.getUi().ButtonSet.OK
   );
+}
+
+/**
+ * Narrow, idempotent upgrade for an existing workbook. Run as the Sheet owner
+ * from the Apps Script editor before publishing a new version of its Web App.
+ * Preserves all attendance values, custom columns, timetable rows, resources,
+ * registrations and instructor notes. It never marks a class completed.
+ */
+function upgradeNovemberCohort() {
+  requireAdmin_();
+  var ss = SpreadsheetApp.getActiveSpreadsheet() || getSpreadsheet_();
+  var attendance = ss.getSheetByName(TREV.ATTENDANCE_SHEET);
+  if (!attendance) {
+    attendance = ss.insertSheet(TREV.ATTENDANCE_SHEET);
+    attendance.getRange(1,1,1,ATTENDANCE_HEADERS.length).setValues([ATTENDANCE_HEADERS]);
+  }
+  var baseHeaders = attendance.getRange(1,1,1,8).getDisplayValues()[0];
+  if (baseHeaders.join('|') !== ATTENDANCE_HEADERS.slice(0,8).join('|')) {
+    throw new Error('Attendance headers differ from the supported format. No existing columns were changed. Review the first eight headers before upgrading.');
+  }
+
+  var completionColumn = getAttendanceCompletionColumn_(attendance);
+  if (!completionColumn) {
+    completionColumn = Math.max(9, attendance.getLastColumn() + 1);
+    if (completionColumn > attendance.getMaxColumns()) {
+      attendance.insertColumnsAfter(attendance.getMaxColumns(), completionColumn - attendance.getMaxColumns());
+    }
+    attendance.getRange(1,completionColumn).setValue('Completed');
+  }
+  if (attendance.getMaxRows() > 1) {
+    // Validation, unlike insertCheckboxes(), does not replace true/false values.
+    attendance.getRange(2,completionColumn,attendance.getMaxRows()-1,1)
+      .setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  }
+  attendance.getRange(1,completionColumn).setNote('Instructor-reviewed class completion. Mark only after the learner has attended and completed this numbered core session. Existing attendance is preserved; completion is never inferred from a portal login or an assignment upload.');
+
+  var settingsUpdated = 0;
+  var settings = ss.getSheetByName(TREV.SETTINGS_SHEET);
+  var changes = novemberCohortSettingChanges_();
+  if (settings && settings.getLastRow() > 1) {
+    getDataRows_(settings, SETTING_HEADERS.length, 1).forEach(function(row,index) {
+      var change = changes[String(row[0])];
+      if (change && String(row[1]) === change.before) {
+        settings.getRange(index+2,2).setValue(change.after);
+        settingsUpdated++;
+      }
+    });
+  }
+  delete TREV_REQUEST_CACHE.settings;
+  // The timetable is not finalized. Seed no dates and preserve every old row.
+  clearPortalCache_();
+  SpreadsheetApp.flush();
+  return { attendanceCompletionColumn:completionColumn, settingsUpdated:settingsUpdated, timetablePreserved:true };
 }
 
 /** Receives registration forms from register.html. */
@@ -416,6 +509,9 @@ function registerStudent_(parameters) {
       return { ok: true, registrationId: registrationId, duplicate: true };
     }
 
+    // A saved request remains idempotent after closing; new requests do not.
+    if (!enrollmentIsOpen_(new Date())) throw new Error('Enrollment for this cohort is closed. Contact support if you already paid.');
+
     sheet.appendRow([
       new Date(),
       safeCell_(registrationId),
@@ -459,6 +555,7 @@ function registerStudent_(parameters) {
 
 /** Select a registration row, then run this from the TREV Registration menu. */
 function approveSelectedRegistration() {
+  requireAdmin_();
   var ui = SpreadsheetApp.getUi();
   var context = getSelectedRegistration_();
   var row = context.values;
@@ -471,9 +568,12 @@ function approveSelectedRegistration() {
     return;
   }
 
+  var now = new Date();
+  var originalApproval = approvalDate_(row[COL.APPROVED_AT - 1], now);
   var confirmation = ui.alert(
     'Confirm verified payment',
-    'Approve ' + row[COL.FULL_NAME - 1] + ' for ' + packageInfo.label + ' (' + packageInfo.price + ')? Only continue after confirming the bank transfer.',
+    'Approve ' + row[COL.FULL_NAME - 1] + ' for ' + packageInfo.label + ' (' + packageInfo.price + ')? Only continue after confirming the bank transfer.' +
+      (!originalApproval && String(row[COL.STATUS - 1]).toUpperCase() !== 'PENDING' ? '\n\nThe original approval date is missing or invalid. Confirming will repair it by starting the access period now. Cancel and correct Approved At manually if an earlier verified approval date is known.' : ''),
     ui.ButtonSet.YES_NO
   );
   if (confirmation !== ui.Button.YES) return;
@@ -488,7 +588,7 @@ function approveSelectedRegistration() {
 
   context.sheet.getRange(context.rowNumber, COL.STATUS).setValue('APPROVED').setBackground('#dcfce7').setFontWeight('bold');
   context.sheet.getRange(context.rowNumber, COL.ACCESS_CODE).setValue(codeCell);
-  context.sheet.getRange(context.rowNumber, COL.APPROVED_AT).setValue(new Date());
+  context.sheet.getRange(context.rowNumber, COL.APPROVED_AT).setValue(originalApproval || now);
 
   // Keep the very long pre-filled wa.me URL hidden behind a short clickable label.
   setShortWhatsAppLink_(context.sheet.getRange(context.rowNumber, COL.WHATSAPP_LINK), whatsappUrl);
@@ -512,6 +612,7 @@ function approveSelectedRegistration() {
 }
 
 function resendSelectedAccessEmail() {
+  requireAdmin_();
   var ui = SpreadsheetApp.getUi();
   var context = getSelectedRegistration_();
   var row = context.values;
@@ -536,6 +637,7 @@ function resendSelectedAccessEmail() {
 
 /** Replaces an existing long URL in column P without resending an email. */
 function rebuildSelectedWhatsAppLink() {
+  requireAdmin_();
   var ui = SpreadsheetApp.getUi();
   var context = getSelectedRegistration_();
   var row = context.values;
@@ -555,6 +657,7 @@ function rebuildSelectedWhatsAppLink() {
 }
 
 function suspendSelectedAccess() {
+  requireAdmin_();
   var ui = SpreadsheetApp.getUi();
   var context = getSelectedRegistration_();
   var row = context.values;
@@ -587,6 +690,9 @@ function verifyAccessCode_(rawCode) {
   var packageInfo = PACKAGES[packageKey];
   if (!packageInfo) return { valid: false, status: 'INVALID' };
 
+  var window = accessWindow_(row, packageInfo, new Date());
+  if (!window.valid) return window;
+
   var loginCount = Number(row[COL.LOGIN_COUNT - 1] || 0) + 1;
   sheet.getRange(rowNumber, COL.LAST_ACCESS).setValue(new Date());
   sheet.getRange(rowNumber, COL.LOGIN_COUNT).setValue(loginCount);
@@ -604,7 +710,8 @@ function verifyAccessCode_(rawCode) {
     package: {
       key: packageKey,
       label: packageInfo.label,
-      accessLevel: packageInfo.accessLevel
+      accessLevel: packageInfo.accessLevel,
+      expiresAt: window.expiresAt
     },
     resources: staticPortal.resources,
     assignments: staticPortal.assignments,
@@ -908,10 +1015,12 @@ function sendAssignmentNotification_(data) {
 
 
 function showMaterialManager() {
+  requireAdmin_();
   SpreadsheetApp.getUi().showSidebar(HtmlService.createHtmlOutput(materialManagerHtml_(null)).setTitle('TREV Content Manager'));
 }
 
 function editSelectedMaterial() {
+  requireAdmin_();
   var context=getSelectedResourceContext_();
   var row=context.sheet.getRange(context.row,1,1,RESOURCE_HEADERS.length).getDisplayValues()[0];
   var data={rowNumber:context.row,accessLevel:row[0],category:row[1],title:row[2],description:row[3],url:row[4],buttonLabel:row[5],materialType:row[6]||'LINK',sortOrder:row[9]||100,visible:String(row[8]).toUpperCase()==='TRUE'};
@@ -920,6 +1029,7 @@ function editSelectedMaterial() {
 
 /** Called by the Sheet sidebar. File input becomes a Blob through google.script.run. */
 function publishCourseMaterial(formObject) {
+  requireAdmin_();
   var level = clean_(formObject.accessLevel, 30).toUpperCase();
   var category = clean_(formObject.category, 80);
   var title = clean_(formObject.title, 150);
@@ -985,6 +1095,7 @@ function getSelectedResourceContext_() {
 }
 
 function unpublishSelectedMaterial() {
+  requireAdmin_();
   var context = getSelectedResourceContext_();
   context.sheet.getRange(context.row,9).setValue(false);
   clearPortalCache_();
@@ -992,6 +1103,7 @@ function unpublishSelectedMaterial() {
 }
 
 function publishSelectedMaterial() {
+  requireAdmin_();
   var context = getSelectedResourceContext_();
   context.sheet.getRange(context.row,9).setValue(true);
   clearPortalCache_();
@@ -999,6 +1111,7 @@ function publishSelectedMaterial() {
 }
 
 function deleteSelectedMaterial() {
+  requireAdmin_();
   var ui=SpreadsheetApp.getUi();
   var context=getSelectedResourceContext_();
   var title=context.sheet.getRange(context.row,3).getDisplayValue();
@@ -1360,6 +1473,9 @@ function formatAttendanceSheet_(sheet) {
   sheet.setColumnWidth(1, 120); sheet.setColumnWidth(2, 180); sheet.setColumnWidth(3, 130);
   sheet.setColumnWidth(4, 190); sheet.setColumnWidth(5, 220); sheet.setColumnWidth(7, 130); sheet.setColumnWidth(8, 320);
   sheet.getRange(2,6,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  sheet.setColumnWidth(9, 130);
+  sheet.getRange(2,9,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  sheet.getRange(1,9).setNote('Instructor-reviewed class completion. Mark only after the learner has attended and completed this numbered core session. Existing attendance is preserved; completion is never inferred from a portal login or an assignment upload.');
 }
 
 function formatContentUpdatesSheet_(sheet) {
@@ -1376,33 +1492,9 @@ function styleAdminHeader_(sheet, length, background, color) {
 }
 
 function addTimetableRows_(sheet) {
-  if (lastDataRowByKey_(sheet, 1) > 1) return;
-  var time = 'To be announced after onboarding';
-  var note = 'The secure class link will be shared in the official WhatsApp group 30–60 minutes before class.';
-  var rows = [
-    ['4 Aug 2026','Tuesday','STARTER','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
-    ['5 Aug 2026','Wednesday','PROFESSIONAL','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
-    ['6 Aug 2026','Thursday','VIP','Session 1','AI Foundations','Core Class','90 minutes',time,'UPCOMING',note],
-    ['7 Aug 2026','Friday','STARTER','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
-    ['8 Aug 2026','Saturday','PROFESSIONAL','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
-    ['9 Aug 2026','Sunday','VIP','Session 2','Prompt Engineering I','Core Class','90 minutes',time,'UPCOMING',note],
-    ['10 Aug 2026','Monday','STARTER','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
-    ['11 Aug 2026','Tuesday','PROFESSIONAL','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
-    ['12 Aug 2026','Wednesday','VIP','Session 3','Prompt Engineering II','Core Class','90 minutes',time,'UPCOMING',note],
-    ['13 Aug 2026','Thursday','STARTER','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
-    ['14 Aug 2026','Friday','PROFESSIONAL','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
-    ['15 Aug 2026','Saturday','VIP','Session 4','Research & Deep Thinking','Core Class','90 minutes',time,'UPCOMING',note],
-    ['16 Aug 2026','Sunday','STARTER','Support','Starter Capstone Support','Support Clinic','90 minutes',time,'UPCOMING',note],
-    ['17 Aug 2026','Monday','PROFESSIONAL','Session 5','Creating with AI','Core Class','90 minutes',time,'UPCOMING',note],
-    ['18 Aug 2026','Tuesday','VIP','Session 5','Creating with AI','Core Class','90 minutes',time,'UPCOMING',note],
-    ['19 Aug 2026','Wednesday','STARTER','Review','Assignment Review & Certificate Readiness','Support Clinic','90 minutes',time,'UPCOMING',note],
-    ['20 Aug 2026','Thursday','PROFESSIONAL','Session 6','Chaining Tools & Ethics','Core Class','90 minutes',time,'UPCOMING',note],
-    ['21 Aug 2026','Friday','VIP','Session 6','Chaining Tools & Ethics','Core Class','90 minutes',time,'UPCOMING',note],
-    ['22 Aug 2026','Saturday','ALL','Support','Open Capstone Clinic','Support Clinic','90 minutes',time,'UPCOMING',note],
-    ['23 Aug 2026','Sunday','PROFESSIONAL','Session 7','Final Presentations','Final Session','90 minutes',time,'UPCOMING',note],
-    ['24 Aug 2026','Monday','VIP','Session 7','Final Presentations','Final Session','90 minutes',time,'UPCOMING',note]
-  ];
-  sheet.getRange(2, 1, rows.length, TIMETABLE_HEADERS.length).setValues(rows);
+  // The November timetable is not finalized. Keep existing records intact and
+  // let instructors add confirmed sessions instead of inventing dates or duration.
+  sheet.getRange(1,1).setNote('The cohort starts 9 November 2026. Add confirmed session dates, days, times and duration when finalized. Earlier dated cohorts are retained here but excluded from the current portal timetable.');
 }
 
 function addChecklistRows_(sheet) {
@@ -1444,12 +1536,12 @@ function addGuidelineRows_(sheet) {
 function addSettingRows_(sheet) {
   if (lastDataRowByKey_(sheet, 1) > 1) return;
   var rows = [
-    ['COHORT_START_DATE','4 August 2026','First day of the rotating cohort timetable.'],
-    ['CLASS_TIME','To be announced after onboarding','Update once the final daily time is fixed.'],
-    ['CLASS_DURATION','90 minutes','Applies to core classes and support clinics.'],
-    ['CAPSTONE_DEADLINE','29 August 2026','Final capstone submission deadline.'],
-    ['CERTIFICATE_RELEASE','31 August 2026','Target certificate release date.'],
-    ['PAYMENT_VERIFICATION_TIME','5 minutes to 1 hour','Normal manual-transfer verification window.'],
+    ['COHORT_START_DATE','9 November 2026','Confirmed cohort start date.'],
+    ['CLASS_TIME','To be announced','Class days, times and timezone are being finalized.'],
+    ['CLASS_DURATION','To be announced','Session and total course duration are being finalized.'],
+    ['CAPSTONE_DEADLINE','To be announced','No additional capstone requirement applies to certificate eligibility.'],
+    ['CERTIFICATE_RELEASE','To be announced','Issue dates will be confirmed by the academy.'],
+    ['PAYMENT_VERIFICATION_TIME','Approximately 10 minutes','Manual payment verification and access-code delivery after payment details are submitted.'],
     ['CLASS_LINK_POLICY','Shared in WhatsApp 30–60 minutes before class','Class links are intentionally not displayed in the portal.'],
     ['RECORDING_POLICY','Students are informed before recording begins','Recordings must not be redistributed.'],
     ['PRIVATE_MESSAGE_POLICY','Only for payment and account issues','Other questions should use the official group.'],
@@ -1474,7 +1566,9 @@ function getTimetableForLevel_(accessLevel) {
   var rows = getDataRows_(sheet, TIMETABLE_HEADERS.length, 1);
   return rows.filter(function(row) {
     var level = clean_(row[2], 30).toUpperCase();
-    return level === 'ALL' || level === accessLevel;
+    var date = row[0] instanceof Date ? row[0] : new Date(String(row[0]));
+    var beforeCurrentCohort = !isNaN(date.getTime()) && date.getTime() < new Date(TREV.COHORT_START + 'T00:00:00+01:00').getTime();
+    return !beforeCurrentCohort && (level === 'ALL' || level === accessLevel);
   }).map(function(row) {
     return {
       date: clean_(row[0], 80), day: clean_(row[1], 30), accessLevel: clean_(row[2], 30),
@@ -1526,6 +1620,35 @@ function settingValue_(key, fallback) {
   return Object.prototype.hasOwnProperty.call(settings, key) && settings[key] ? settings[key] : (fallback || '');
 }
 
+function novemberCohortSettingChanges_() {
+  return {
+    COHORT_START_DATE:{before:'4 August 2026',after:'9 November 2026'},
+    CLASS_TIME:{before:'To be announced after onboarding',after:'To be announced'},
+    CLASS_DURATION:{before:'90 minutes',after:'To be announced'},
+    CAPSTONE_DEADLINE:{before:'29 August 2026',after:'To be announced'},
+    CERTIFICATE_RELEASE:{before:'31 August 2026',after:'To be announced'},
+    PAYMENT_VERIFICATION_TIME:{before:'5 minutes to 1 hour',after:'Approximately 10 minutes'}
+  };
+}
+
+/** Replace only the former cohort's shipped defaults; preserve custom settings. */
+function cohortSettingValue_(key, fallback) {
+  var change = novemberCohortSettingChanges_()[key];
+  var value = settingValue_(key, fallback);
+  return change && value === change.before ? fallback : value;
+}
+
+/** Custom Attendance columns may precede the appended completion field. */
+function getAttendanceCompletionColumn_(sheet) {
+  var columns = sheet.getLastColumn();
+  if (columns < 9) return 0;
+  var headers = sheet.getRange(1,1,1,columns).getDisplayValues()[0];
+  for (var index = 8; index < headers.length; index++) {
+    if (String(headers[index]).trim().toUpperCase() === 'COMPLETED') return index + 1;
+  }
+  return 0;
+}
+
 function getCommunityInfo_(accessLevel) {
   var prefix = accessLevel === 'STARTER' ? 'STARTER' : accessLevel === 'PROFESSIONAL' ? 'PROFESSIONAL' : 'VIP';
   return {
@@ -1541,29 +1664,35 @@ function getCommunityInfo_(accessLevel) {
 
 function getStudentProgress_(registrationId, accessLevel) {
   var requiredSessions = accessLevel === 'STARTER' ? 4 : 7;
+  var certificateRequiredSessions = accessLevel === 'STARTER' ? 4 : 5;
   var attendanceSheet = getSpreadsheet_().getSheetByName(TREV.ATTENDANCE_SHEET);
   var attendedLabels = [];
+  var completedLabels = [];
   if (attendanceSheet) {
-    getDataRows_(attendanceSheet, ATTENDANCE_HEADERS.length, 4).forEach(function(row) {
+    var completionColumn = getAttendanceCompletionColumn_(attendanceSheet);
+    getDataRows_(attendanceSheet, Math.max(ATTENDANCE_HEADERS.length,completionColumn), 4).forEach(function(row) {
       var present = row[5] === true || String(row[5]).toUpperCase() === 'TRUE';
-      if (String(row[3]) === registrationId && present) {
-        var label = clean_(row[1], 120);
-        if (label && attendedLabels.indexOf(label) === -1) attendedLabels.push(label);
+      var completed = completionColumn > 0 && (row[completionColumn-1] === true || String(row[completionColumn-1]).toUpperCase() === 'TRUE');
+      var level = clean_(row[2], 30).toUpperCase();
+      // Numbered core sessions only. Duplicate rows and support clinics cannot
+      // inflate the class count; a blank legacy Completed value never qualifies.
+      var session = /^(?:SESSION|CLASS)\s*0?([1-7])(?:\s*[:\-–—]\s*.*)?$/i.exec(clean_(row[1],120));
+      if (String(row[3]) === registrationId && present && session && Number(session[1]) <= requiredSessions && (level === accessLevel || level === 'ALL')) {
+        var label = 'Session ' + Number(session[1]);
+        if (attendedLabels.indexOf(label) === -1) attendedLabels.push(label);
+        if (completed && completedLabels.indexOf(label) === -1) completedLabels.push(label);
       }
     });
   }
-  var lessonsCompleted = Math.min(requiredSessions, attendedLabels.length);
-  var attendancePercent = Math.min(100, Math.round((lessonsCompleted / requiredSessions) * 100));
+  var lessonsCompleted = completedLabels.length;
+  var attendancePercent = Math.round((attendedLabels.length / requiredSessions) * 100);
 
   var assignments = getAssignmentsForLevel_(accessLevel);
   var submissions = getSubmissionsForRegistration_(registrationId);
   var approvedIds = [];
-  var capstoneApproved = false;
   submissions.forEach(function(submission) {
     if (clean_(submission.status, 40).toUpperCase() === 'APPROVED') {
       if (approvedIds.indexOf(submission.assignmentId) === -1) approvedIds.push(submission.assignmentId);
-      var combined = (submission.assignmentId + ' ' + submission.assignmentTitle).toUpperCase();
-      if (/CAPSTONE|FINAL|VIP-PROJECT/.test(combined)) capstoneApproved = true;
     }
   });
   var requiredAssignments = assignments.length;
@@ -1574,8 +1703,8 @@ function getStudentProgress_(registrationId, accessLevel) {
   var certificatesSheet = getSpreadsheet_().getSheetByName(TREV.CERTIFICATES_SHEET);
   if (certificatesSheet) {
     getDataRows_(certificatesSheet, CERTIFICATE_HEADERS.length, 1).some(function(row) {
-      if (String(row[2]) === registrationId) {
-        certificate = { id:clean_(row[0],60), issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80), status:clean_(row[8],30)||'ISSUED' };
+      if (String(row[2]) === registrationId && clean_(row[8],30).toUpperCase() === 'ISSUED') {
+        certificate = { id:clean_(row[0],60), issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80), status:'ISSUED' };
         return true;
       }
       return false;
@@ -1583,21 +1712,23 @@ function getStudentProgress_(registrationId, accessLevel) {
   }
   return {
     requiredSessions:requiredSessions,
+    certificatePolicyVersion:2,
+    certificateRequiredSessions:certificateRequiredSessions,
     lessonsCompleted:lessonsCompleted,
     attendancePercent:attendancePercent,
     attendedSessions:attendedLabels,
+    completedSessions:completedLabels,
     requiredAssignments:requiredAssignments,
     approvedAssignments:approvedAssignments,
     assignmentPercent:assignmentPercent,
-    capstoneApproved:capstoneApproved,
-    certificateEligible:attendancePercent >= 75 && capstoneApproved,
+    certificateEligible:lessonsCompleted >= certificateRequiredSessions,
     certificate:certificate
   };
 }
 
 function getStaticPortalData_(accessLevel) {
   var cache = CacheService.getScriptCache();
-  var key = 'portal-static-v3-' + accessLevel;
+  var key = 'portal-static-v4-' + accessLevel;
   var cached = cache.get(key);
   if (cached) {
     try { return JSON.parse(cached); } catch (ignored) {}
@@ -1610,11 +1741,11 @@ function getStaticPortalData_(accessLevel) {
     communityGuidelines: getCommunityGuidelines_(),
     community: getCommunityInfo_(accessLevel),
     cohort: {
-      startDate: settingValue_('COHORT_START_DATE', '4 August 2026'),
-      classTime: settingValue_('CLASS_TIME', 'To be announced after onboarding'),
-      duration: settingValue_('CLASS_DURATION', '90 minutes'),
-      capstoneDeadline: settingValue_('CAPSTONE_DEADLINE', '29 August 2026'),
-      certificateRelease: settingValue_('CERTIFICATE_RELEASE', '31 August 2026')
+      startDate: cohortSettingValue_('COHORT_START_DATE', '9 November 2026'),
+      enrollmentEnds: '6 November 2026',
+      classTime: cohortSettingValue_('CLASS_TIME', 'To be announced'),
+      duration: cohortSettingValue_('CLASS_DURATION', 'To be announced'),
+      certificateRelease: cohortSettingValue_('CERTIFICATE_RELEASE', 'To be announced')
     }
   };
   try { cache.put(key, JSON.stringify(data), 300); } catch (ignored) {}
@@ -1623,27 +1754,36 @@ function getStaticPortalData_(accessLevel) {
 
 function clearPortalCache_() {
   CacheService.getScriptCache().removeAll([
-    'portal-static-v3-STARTER',
-    'portal-static-v3-PROFESSIONAL',
-    'portal-static-v3-VIP'
+    'portal-static-v4-STARTER',
+    'portal-static-v4-PROFESSIONAL',
+    'portal-static-v4-VIP'
   ]);
 }
 
 function refreshPortalCache() {
+  requireAdmin_();
   clearPortalCache_();
   SpreadsheetApp.getUi().alert('Portal data cache cleared. Updated resources, timetable, checklist, guidelines, and settings will be visible on the next login.');
 }
 
 
 function installContentUpdateTrigger() {
+  requireAdmin_();
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'processContentUpdates') ScriptApp.deleteTrigger(trigger);
+    if (['processContentUpdates','processContentUpdates_'].indexOf(trigger.getHandlerFunction()) !== -1) ScriptApp.deleteTrigger(trigger);
   });
-  ScriptApp.newTrigger('processContentUpdates').timeBased().everyDays(1).atHour(10).create();
+  // Private handlers cannot be invoked through a student's google.script.run bridge.
+  ScriptApp.newTrigger('processContentUpdates_').timeBased().everyDays(1).atHour(10).create();
   SpreadsheetApp.getUi().alert('Daily content-update trigger installed for approximately 10:00 AM WAT.');
 }
 
 function processContentUpdates() {
+  requireAdmin_();
+  return processContentUpdates_();
+}
+
+/** Installed triggers run this private handler; manual sends use the guarded wrapper. */
+function processContentUpdates_() {
   var ss=getSpreadsheet_();
   var sheet=ss.getSheetByName(TREV.CONTENT_UPDATES_SHEET);
   if (!sheet || sheet.getLastRow()<2) return;
@@ -1672,15 +1812,14 @@ function processContentUpdates() {
 
 function getUpdateRecipients_(audience,now) {
   var rows=getDataRows_(getRegistrationsSheet_(),REG_HEADERS.length,COL.REGISTRATION_ID);
-  var cutoff=new Date(now.getTime()); cutoff.setMonth(cutoff.getMonth()-24);
   var seen={}; var result=[];
   rows.forEach(function(row) {
     if (clean_(row[COL.STATUS-1],30).toUpperCase()!=='APPROVED') return;
     var key=clean_(row[COL.PACKAGE_KEY-1],30).toUpperCase();
     var eligible=(audience==='BOTH'&&(key==='PROFESSIONAL'||key.indexOf('VIP_')===0))||(audience==='PROFESSIONAL'&&key==='PROFESSIONAL')||(audience==='VIP'&&key.indexOf('VIP_')===0);
     if (!eligible) return;
-    var approved=row[COL.APPROVED_AT-1] instanceof Date?row[COL.APPROVED_AT-1]:new Date(row[COL.APPROVED_AT-1]);
-    if (!isNaN(approved.getTime())&&approved<cutoff) return;
+    var packageInfo=PACKAGES[key];
+    if (!packageInfo || !accessWindow_(row,packageInfo,now).valid) return;
     var email=clean_(row[COL.EMAIL-1],120).toLowerCase();
     if (!email||seen[email]) return;
     seen[email]=true; result.push({email:email,name:clean_(row[COL.FULL_NAME-1],100)});
@@ -1696,12 +1835,12 @@ function verifyCertificate_(rawId) {
   var rowNumber = findExactRow_(sheet,1,certificateId);
   if (!rowNumber) return { valid:false, status:'NOT FOUND' };
   var row = sheet.getRange(rowNumber,1,1,CERTIFICATE_HEADERS.length).getValues()[0];
-  var status = clean_(row[8],30).toUpperCase() || 'ISSUED';
-  if (status === 'REVOKED') return { valid:false, status:'REVOKED' };
+  var status = clean_(row[8],30).toUpperCase();
+  if (status !== 'ISSUED') return { valid:false, status:status === 'REVOKED' ? 'REVOKED' : 'NOT ISSUED' };
   return { valid:true, certificate:{
     id:certificateId, studentName:clean_(row[1],160), registrationId:clean_(row[2],60),
     packageKey:clean_(row[3],30), packageLabel:clean_(row[4],160), attendance:clean_(row[5],30),
-    capstoneStatus:clean_(row[6],60), issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80),
+    issueDate:row[7] instanceof Date ? Utilities.formatDate(row[7],TREV.TIMEZONE,'MMM d, yyyy') : clean_(row[7],80),
     status:status
   }};
 }
@@ -1762,7 +1901,7 @@ function sendPendingStudentEmail_(name, email, registrationId, packageInfo) {
     'Hi ' + firstName_(name) + ',\n\n' +
     'We received your registration for the ' + packageInfo.label + ' (' + packageInfo.price + ').\n' +
     'Registration reference: ' + registrationId + '\n\n' +
-    'Your payment is now awaiting manual verification. Normal verification takes 5 minutes to 1 hour. Once approved, your personal student-portal access code will be sent to this email address.\n\n' +
+    'Your payment is now awaiting manual verification. Allow approximately 10 minutes for verification and delivery of your personal student-portal access code by email and WhatsApp.\n\n' +
     'If the transfer name differs from your registration name, contact support on WhatsApp so your identity and payment can be confirmed. Incorrect payment amounts will be refunded after verification.\n\n' +
     'TREV AI Support\n' + TREV.ADMIN_EMAIL;
   var html = emailShell_(
@@ -1772,9 +1911,9 @@ function sendPendingStudentEmail_(name, email, registrationId, packageInfo) {
     detailBox_([
       ['Registration reference', registrationId],
       ['Status', 'Payment verification pending'],
-      ['Expected verification time', '5 minutes to 1 hour']
+      ['Expected verification time', 'Approximately 10 minutes']
     ]) +
-    '<p>Once the transfer is verified, your personal student-portal access code will be sent to this email address.</p>' +
+    '<p>Once the transfer is verified, your personal student-portal access code will be sent by email and WhatsApp.</p>' +
     '<p>If the transfer name differs from your registration name, contact support on WhatsApp. Incorrect payment amounts will be refunded after verification.</p>'
   );
   return sendMailSafely_(email, subject, text, html);
@@ -1845,8 +1984,8 @@ function sendApprovalEmail_(name, email, registrationId, packageInfo, codes) {
       ['Registration ID', registrationId],
       ['Approved package', packageInfo.label],
       ['Confirmed amount', packageInfo.price],
-      ['Cohort begins', settingValue_('COHORT_START_DATE', '4 August 2026')],
-      ['Class time', settingValue_('CLASS_TIME', 'To be announced after onboarding')],
+      ['Cohort begins', cohortSettingValue_('COHORT_START_DATE', '9 November 2026')],
+      ['Class time', cohortSettingValue_('CLASS_TIME', 'To be announced')],
       ['Support hours', community.supportHours]
     ]) +
     '<p style="text-align:center"><a href="' + escapeHtml_(TREV.PORTAL_URL) + '" style="display:inline-block;background:#f2b705;color:#111;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:999px">Open Student Portal</a></p>' +
@@ -1976,3 +2115,4 @@ function javascriptOutput_(callback, payload) {
     .createTextOutput(callback + '(' + JSON.stringify(payload) + ');')
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
+

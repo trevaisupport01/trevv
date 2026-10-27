@@ -40,6 +40,7 @@
   let currentOnboardingRatio = 0;
   let currentTimetable = [];
   let currentSubmissions = [];
+  let currentAccessLevel = '';
 
   if (!config || !loginForm) return;
 
@@ -355,33 +356,47 @@
     if (element) element.scrollIntoView({behavior:'smooth',block:'start'});
   };
 
+  const hasSessionRecord = (records, entry) => {
+    const normalize = (value) => String(value || '').trim().toLowerCase();
+    const sessionNumber = (value) => /^(?:session|class)\s*0?([1-7])(?:\s*[:\-–—]\s*.*)?$/i.exec(normalize(value))?.[1];
+    const labels = [entry.session, entry.title].map(normalize).filter(Boolean);
+    const number = sessionNumber(entry.session) || sessionNumber(entry.title);
+    return Array.isArray(records) && records.some((record) => {
+      const label = normalize(record);
+      return label && (labels.includes(label) || (number && sessionNumber(label) === number));
+    });
+  };
+
   const updateDashboardProgress = () => {
     const progress=currentProgressData||{};
-    const onboardingScore=currentOnboardingRatio*10;
-    const attendanceScore=(Number(progress.attendancePercent||0)/100)*30;
-    const assignmentScore=(Number(progress.assignmentPercent||0)/100)*35;
-    const capstoneScore=progress.capstoneApproved?25:0;
-    const total=Math.min(100,Math.round(onboardingScore+attendanceScore+assignmentScore+capstoneScore));
+    const requiredSessions=currentAccessLevel==='STARTER'?4:7;
+    const certificateRequiredSessions=currentAccessLevel==='STARTER'?4:5;
+    const completionTracked=progress.certificatePolicyVersion===2;
+    const completedSessions=completionTracked?Math.max(0,Math.min(requiredSessions,Number(progress.lessonsCompleted)||0)):0;
+    const total=Math.min(100,Math.round((completedSessions/certificateRequiredSessions)*100));
     const ring=document.getElementById('overallProgressRing');
     ring.style.setProperty('--progress',total);
     document.getElementById('overallProgressValue').textContent=`${total}%`;
-    document.getElementById('progressLessons').textContent=`${progress.lessonsCompleted||0} / ${progress.requiredSessions||0}`;
+    document.getElementById('progressLessons').textContent=`${completedSessions} / ${requiredSessions}`;
     document.getElementById('progressAssignments').textContent=`${progress.approvedAssignments||0} / ${progress.requiredAssignments||0}`;
 
-    const next=currentTimetable.find((entry)=>!String(entry.status||'').toUpperCase().includes('COMPLETED'))||currentTimetable[0];
+    const next=currentTimetable.find((entry)=>
+      String(entry.status||'').trim().toUpperCase()!=='COMPLETED' &&
+      !hasSessionRecord(progress.attendedSessions,entry) &&
+      !hasSessionRecord(progress.completedSessions,entry)
+    );
     document.getElementById('progressNextClass').textContent=next?.title||'To be announced';
-    document.getElementById('progressNextClassDate').textContent=next?`${next.date} · ${next.classTime}`:'Check timetable';
+    document.getElementById('progressNextClassDate').textContent=next?`${next.date || 'Date to be announced'} · ${next.classTime || 'Time to be announced'}`:'Check timetable for updates';
 
     const certificateLabel=document.getElementById('progressCertificate');
     const certificateDetail=document.getElementById('progressCertificateDetail');
-    if (progress.certificate) {
+    if (progress.certificate && String(progress.certificate.status).toUpperCase()==='ISSUED') {
       certificateLabel.textContent='Issued'; certificateDetail.textContent=progress.certificate.id||'Certificate available';
-    } else if (progress.certificateEligible) {
+    } else if (completionTracked && progress.certificateEligible && completedSessions>=certificateRequiredSessions) {
       certificateLabel.textContent='Eligible'; certificateDetail.textContent='Awaiting certificate issue';
-    } else if ((progress.attendancePercent||0)<75) {
-      certificateLabel.textContent='Attendance pending'; certificateDetail.textContent=`${progress.attendancePercent||0}% of 75% required`;
-    } else if (!progress.capstoneApproved) {
-      certificateLabel.textContent='Capstone pending'; certificateDetail.textContent='Submit and pass your capstone';
+    } else {
+      certificateLabel.textContent=completionTracked?'Classes pending':'Completion review pending';
+      certificateDetail.textContent=`Attend and complete ${certificateRequiredSessions} of ${requiredSessions} classes`;
     }
 
     let target='portalResources'; let label='Continue Learning';
@@ -391,7 +406,9 @@
     else if (next) { target='portalTimetable'; label='View Next Live Class'; }
     continueLearningButton.dataset.target=target;
     continueLearningButton.firstChild.textContent=label+' ';
-    document.getElementById('progressSummary').textContent=total===100?'Your course requirements are complete.':`${total}% complete across onboarding, attendance, assignments and capstone.`;
+    document.getElementById('progressSummary').textContent=completionTracked
+      ? `${completedSessions} of ${requiredSessions} classes attended and completed. Certificate requirement: ${certificateRequiredSessions} of ${requiredSessions}. Certificates are issued separately.`
+      : `Attend and complete ${certificateRequiredSessions} of ${requiredSessions} classes. Your instructor will confirm your completion record.`;
   };
 
   const renderCommunity = (community, cohort) => {
@@ -419,7 +436,7 @@
     const facts = createElement('div', 'community-facts');
     [
       ['Support hours', community?.supportHours || 'See WhatsApp group'],
-      ['Class time', cohort?.classTime || 'To be announced after onboarding'],
+      ['Class time', currentCohortValue(cohort?.classTime, 'To be announced after onboarding', 'To be announced')],
       ['Class links', community?.classLinkPolicy || 'Shared in WhatsApp before class'],
       ['Recording', community?.recordingPolicy || 'Students are informed before recording begins'],
       ['Private messages', community?.privateMessagePolicy || 'Only for payment and account issues']
@@ -487,34 +504,45 @@
     updateProgress();
   };
 
+  const currentCohortValue = (value, legacyValue, fallback) => value && value!==legacyValue ? value : fallback;
+
+  const isCurrentCohortSession = (entry) => {
+    const date=new Date(entry.date);
+    const start=new Date(config.pricing?.cohortStarts||'2026-11-09T00:00:00+01:00');
+    return Number.isNaN(date.getTime())||date.getTime()>=start.getTime();
+  };
+
   const renderTimetable = (timetable, cohort) => {
     timetableContainer.replaceChildren();
-    if (!Array.isArray(timetable) || timetable.length === 0) {
-      timetableContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Your timetable is being prepared.'));
-      return;
-    }
     const summary = createElement('div', 'timetable-summary');
     [
-      ['Cohort begins', cohort?.startDate || '4 August 2026'],
-      ['Class duration', cohort?.duration || '90 minutes'],
-      ['Capstone deadline', cohort?.capstoneDeadline || '29 August 2026'],
-      ['Certificate release', cohort?.certificateRelease || '31 August 2026']
+      ['Cohort begins', currentCohortValue(cohort?.startDate, '4 August 2026', '9 November 2026')],
+      ['Class time', currentCohortValue(cohort?.classTime, 'To be announced after onboarding', 'To be announced')],
+      ['Class duration', currentCohortValue(cohort?.duration, '90 minutes', 'To be announced')],
+      ['Certificate release', currentCohortValue(cohort?.certificateRelease, '31 August 2026', 'To be announced')]
     ].forEach(([label, value]) => {
       const item = createElement('div');
       item.append(createElement('span', '', label), createElement('strong', '', value));
       summary.appendChild(item);
     });
     timetableContainer.appendChild(summary);
+    if (!Array.isArray(timetable) || timetable.length === 0) {
+      timetableContainer.appendChild(createElement('div', 'portal-empty-state compact', 'The class timetable and session duration are being finalized. Details will be announced once confirmed.'));
+      return;
+    }
 
     const list = createElement('div', 'timetable-list');
     const attended = currentProgressData?.attendedSessions || [];
+    const completed = currentProgressData?.certificatePolicyVersion===2 ? currentProgressData.completedSessions || [] : [];
     let currentAssigned = false;
     timetable.forEach((entry) => {
-      const isCompleted = attended.some((label) => label === entry.session || label === entry.title || label.includes(entry.session));
-      const isCore = String(entry.activityType || '').toLowerCase().includes('core') || String(entry.session || '').toLowerCase().includes('session');
-      const isCurrent = !isCompleted && !currentAssigned && isCore;
+      const isCompleted = hasSessionRecord(completed,entry);
+      const isAttended = hasSessionRecord(attended,entry);
+      const isPast = String(entry.status || '').trim().toUpperCase()==='COMPLETED';
+      const isCore = String(entry.activityType || '').toLowerCase().includes('core') || /^(?:session|class)\s*0?[1-7]\b/i.test(String(entry.session || ''));
+      const isCurrent = !isCompleted && !isAttended && !isPast && !currentAssigned && isCore;
       if (isCurrent) currentAssigned = true;
-      const state = isCompleted ? 'completed' : isCurrent ? 'current' : 'upcoming';
+      const state = isCompleted ? 'completed' : isCurrent ? 'current' : isAttended ? 'attended' : isPast ? 'past' : 'upcoming';
       const row = createElement('article', `timetable-row roadmap-${state}`);
       const date = createElement('div', 'timetable-date');
       date.append(createElement('strong', '', entry.date || ''), createElement('span', '', entry.day || ''));
@@ -522,9 +550,9 @@
       detail.append(
         createElement('span', 'timetable-session', `${entry.session || 'Session'} · ${entry.activityType || 'Class'}`),
         createElement('h3', '', entry.title || 'Class Session'),
-        createElement('p', '', `${entry.classTime || 'Time TBA'} · ${entry.duration || '90 minutes'}`)
+        createElement('p', '', `${entry.classTime || 'Time to be announced'} · ${entry.duration || 'Duration to be announced'}`)
       );
-      const status = createElement('span', 'timetable-status', isCompleted ? 'COMPLETED' : isCurrent ? 'CURRENT' : 'UPCOMING');
+      const status = createElement('span', 'timetable-status', isCompleted ? 'COMPLETED' : isAttended ? 'ATTENDED' : isPast ? 'SESSION ENDED' : isCurrent ? 'CURRENT' : 'UPCOMING');
       row.append(date, detail, status);
       list.appendChild(row);
     });
@@ -619,8 +647,9 @@
 
   const renderDashboard = (response, code, options = {}) => {
     currentAccessCode = code;
+    currentAccessLevel = response.package.accessLevel || '';
     currentProgressData = response.progress || {};
-    currentTimetable = response.timetable || [];
+    currentTimetable = (response.timetable || []).filter(isCurrentCohortSession);
     currentSubmissions = response.submissions || [];
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
     document.getElementById('studentRegistrationId').textContent = response.student.registrationId || '—';
@@ -628,7 +657,7 @@
     document.getElementById('studentPackageBadge').textContent = response.package.accessLevel || response.package.key || 'STUDENT';
     renderCommunity(response.community || {}, response.cohort || {});
     renderOnboarding(response.onboarding || [], response.student.registrationId || 'student');
-    renderTimetable(response.timetable || [], response.cohort || {});
+    renderTimetable(currentTimetable, response.cohort || {});
     renderResources(response.resources);
     renderAssignments(response.assignments, response.submissions);
     renderSubmissions(response.submissions);
@@ -671,7 +700,9 @@
         const reasonMessages = {
           SUSPENDED: 'This access code has been suspended. Contact TREV AI Support.',
           REJECTED: 'This registration was not approved. Contact TREV AI Support.',
-          PENDING: 'Your registration is still awaiting payment verification.'
+          PENDING: 'Your registration is still awaiting payment verification.',
+          EXPIRED: 'Your package access period has ended. Contact TREV AI Support if you need help with your account.',
+          APPROVAL_REVIEW: 'Your access record needs a support review. Contact TREV AI Support with your registration details.'
         };
         showMessage(reasonMessages[response && response.status] || 'That access code is invalid. Check it carefully or contact support.');
         if (options.refresh) {
@@ -740,3 +771,4 @@
     verifyCode(savedCode);
   }
 })();
+

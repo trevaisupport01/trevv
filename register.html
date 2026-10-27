@@ -6,7 +6,7 @@
   <title>Register | TREV AI Masterclass</title>
   <meta name="description" content="Register for a TREV AI Masterclass package, submit your bank-transfer reference, and receive your personal student-portal access code after verification.">
   <meta name="robots" content="index,follow">
-  <link rel="canonical" href="https://trevaisupport01.github.io/Trev/register.html">
+  <link rel="canonical" href="https://trevv-nu.vercel.app/register.html">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
@@ -57,9 +57,16 @@
     <section class="registration-hero" aria-labelledby="registration-title">
       <div class="container">
         <div class="registration-intro max-w-lg">
-          <span class="section-tag">Secure Enrollment</span>
+          <span class="section-tag">November 2026 Cohort</span>
           <h1 id="registration-title">Register for your TREV AI package.</h1>
-          <p>Choose your package, make the bank transfer, and submit the reference below. After the payment is verified, you will receive a personal access code by email and WhatsApp.</p>
+          <p><strong>Classes start <span data-cohort-start>9 November 2026</span>. Enrollment closes <span data-cohort-close>6 November 2026</span>.</strong></p>
+          <p>The class timetable and session duration are being finalized. Details will be announced once confirmed.</p>
+          <p data-enrollment-open>Choose your package, make the bank transfer, and submit the reference below. Allow approximately 10 minutes for payment verification and delivery of your personal access code by email and WhatsApp.</p>
+          <div class="pending-notice" data-enrollment-closed hidden role="status">
+            <strong>Enrollment for this cohort is closed.</strong>
+            <p>Please contact support about future cohorts or a payment you have already made. Current students can continue to use the student portal.</p>
+            <a href="contact.html#contact" class="text-link">Contact support →</a>
+          </div>
         </div>
       </div>
     </section>
@@ -70,12 +77,12 @@
           <div class="enrollment-summary-card">
             <span class="eyebrow">Selected package</span>
             <h2 id="selectedPackageName">Professional Package</h2>
-            <p class="summary-price" id="selectedPackagePrice">₦30,000</p>
-            <p class="pricing-phase-label" data-pricing-phase>Early-bird price — ends 28 July, 11:59 PM WAT</p>
+            <p class="summary-price" id="selectedPackagePrice">₦35,000</p>
+            <p class="pricing-phase-label" data-pricing-phase>Standard price</p>
             <a href="pricing.html#pricing" class="text-link">Compare all packages →</a>
           </div>
 
-          <div class="bank-details-card">
+          <div class="bank-details-card" data-enrollment-open>
             <div class="secure-row">
               <span class="secure-dot" aria-hidden="true"></span>
               <span>Bank-transfer details</span>
@@ -92,22 +99,22 @@
             <p class="bank-note">Transfer the exact package amount. Keep your receipt or transaction reference until your access code is issued.</p>
           </div>
 
-          <ol class="registration-steps" aria-label="Enrollment steps">
+          <ol class="registration-steps" aria-label="Enrollment steps" data-enrollment-open>
             <li><span>1</span><div><strong>Choose a package</strong><p>Select the learning plan that fits your goals.</p></div></li>
             <li><span>2</span><div><strong>Make the transfer</strong><p>Pay to the verified OPAY account shown above.</p></div></li>
             <li><span>3</span><div><strong>Submit registration</strong><p>Enter the transfer reference and your contact details.</p></div></li>
-            <li><span>4</span><div><strong>Receive your code</strong><p>After verification, support sends your unique portal code.</p></div></li>
+            <li><span>4</span><div><strong>Receive your code</strong><p>Allow approximately 10 minutes after submission for verification and code delivery by email and WhatsApp.</p></div></li>
           </ol>
         </aside>
 
         <div class="registration-form-card">
-          <div class="form-card-heading">
+          <div class="form-card-heading" id="registrationFormHeading" data-enrollment-open>
             <span class="section-tag">Student Details</span>
             <h2>Complete your registration</h2>
-            <p>Use an email and WhatsApp number you can access. Your approval and access code will be sent there.</p>
+            <p>Use an email and WhatsApp number you can access. Your personal code will be sent there after payment verification.</p>
           </div>
 
-          <form id="registrationForm" class="registration-form" novalidate>
+          <form id="registrationForm" class="registration-form" data-enrollment-open novalidate>
             <div class="form-group">
               <label for="package">Package</label>
               <select id="package" name="package" class="form-input" required>
@@ -161,18 +168,29 @@
             <button id="registrationSubmit" type="submit" class="btn btn-primary btn-full registration-submit">
               <span>Submit Registration</span><span aria-hidden="true">→</span>
             </button>
-            <p class="form-security-note">Submitting does not create instant access. TREV AI Support must verify the transfer before issuing your personal code.</p>
+            <p class="form-security-note">Allow approximately 10 minutes for payment verification and your code. If it has not arrived after that, <a href="https://wa.me/2348139908559" target="_blank" rel="noopener">contact support</a> with your registration details.</p>
           </form>
+
+          <div class="form-card-heading" data-enrollment-closed hidden>
+            <span class="section-tag">Enrollment closed</span>
+            <h2>Need help with your registration?</h2>
+            <p>Contact support if you have already transferred a payment or need an update. Please do not make a new transfer for this cohort.</p>
+            <div class="success-actions">
+              <a href="https://wa.me/2348139908559" class="btn btn-secondary" target="_blank" rel="noopener">Message Support</a>
+              <a href="portal.html" class="btn btn-outline">Student Portal</a>
+            </div>
+          </div>
 
           <div id="registrationSuccess" class="registration-success" tabindex="-1" hidden>
             <div class="success-icon" aria-hidden="true">✓</div>
-            <span class="section-tag">Registration received</span>
+            <span class="section-tag" id="registrationOutcome">Registration request sent</span>
             <h2>Payment verification is pending.</h2>
             <p>Your registration reference is <strong id="successReference"></strong>. Save it for support enquiries.</p>
             <div class="pending-notice">
               <strong>What happens next?</strong>
-              <p>We will match your transfer reference with the OPAY payment. Normal verification takes approximately 5 minutes to 1 hour. Once approved, your unique portal code, package summary, timetable, onboarding checklist, community information, and support details will become available.</p>
-              <p>If the transfer name differs from your registration name, message support to confirm your identity and payment. Incorrect payment amounts will be refunded after verification.</p>
+              <p id="registrationReceiptMessage">Check your email for confirmation that your registration was received. Allow approximately 10 minutes for payment verification and delivery of your personal access code by email and WhatsApp.</p>
+              <p>If no confirmation or code arrives after approximately 10 minutes, contact support with your registration reference. Do not make another payment.</p>
+              <p>If the transfer name differs from your registration name, let support know so they can match your payment.</p>
             </div>
             <div class="success-actions">
               <a id="registrationSupportLink" href="https://wa.me/2348139908559" class="btn btn-secondary" target="_blank" rel="noopener">Message Support</a>
@@ -212,6 +230,8 @@
   <button id="backToTop" class="back-to-top" aria-label="Scroll to top">↑</button>
   <script src="js/script.js" defer></script>
   <script src="js/config.js" defer></script>
+  <script src="js/cohort.js" defer></script>
   <script src="js/registration.js" defer></script>
 </body>
 </html>
+

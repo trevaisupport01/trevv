@@ -66,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
     navBackdrop.setAttribute('aria-label', 'Close navigation menu');
     document.body.appendChild(navBackdrop);
 
+    const syncNavAvailability = () => {
+      primaryNav.inert = window.innerWidth <= 1180 && !primaryNav.classList.contains('active');
+    };
+
     const toggleMenu = (forceClose = false) => {
       const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
       const shouldOpen = forceClose ? false : !isExpanded;
@@ -75,6 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
       menuToggle.classList.toggle('open', shouldOpen);
       navBackdrop.classList.toggle('active', shouldOpen);
       document.body.classList.toggle('nav-open', shouldOpen);
+      if (!shouldOpen && window.innerWidth <= 1180 && primaryNav.contains(document.activeElement)) {
+        menuToggle.focus();
+      }
+      syncNavAvailability();
 
       const bars = menuToggle.querySelectorAll('.bar');
       if (shouldOpen) {
@@ -90,12 +98,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     menuToggle.addEventListener('click', () => toggleMenu());
     navBackdrop.addEventListener('click', () => toggleMenu(true));
+    syncNavAvailability();
     window.addEventListener('resize', () => {
       if (window.innerWidth > 1180 && primaryNav.classList.contains('active')) toggleMenu(true);
+      syncNavAvailability();
     }, { passive: true });
 
     // Close menu on navigation link clicks
-    navLinks.forEach(link => {
+    primaryNav.querySelectorAll('a[href]').forEach(link => {
       link.addEventListener('click', () => toggleMenu(true));
     });
 
@@ -178,42 +188,51 @@ document.addEventListener('DOMContentLoaded', () => {
   const accordions = document.querySelectorAll('.accordion-header');
 
   accordions.forEach(header => {
+    const panel = header.nextElementSibling;
+    let transitionId = 0;
+    let transitionHandler = null;
+    let transitionTimeout = null;
+    const clearPendingTransition = () => {
+      if (transitionHandler) panel.removeEventListener('transitionend', transitionHandler);
+      if (transitionTimeout !== null) window.clearTimeout(transitionTimeout);
+      transitionHandler = null;
+      transitionTimeout = null;
+    };
+
     header.addEventListener('click', () => {
-      const panel = header.nextElementSibling;
-      const isExpanded = header.getAttribute('aria-expanded') === 'true';
+      clearPendingTransition();
+      const currentTransition = ++transitionId;
+      const shouldOpen = header.getAttribute('aria-expanded') !== 'true';
+      const startHeight = panel.hidden ? 0 : panel.getBoundingClientRect().height;
+      header.setAttribute('aria-expanded', String(shouldOpen));
+      panel.hidden = false;
 
-      header.setAttribute('aria-expanded', !isExpanded);
-
-      if (!isExpanded) {
-        panel.removeAttribute('hidden');
-        panel.style.maxHeight = panel.scrollHeight + 'px';
-        
-        // Remove hard pixel limits once transition ends to support layout reflows on resize
-        const handleTransitionEnd = (e) => {
-          if (e.propertyName === 'max-height') {
-            panel.style.maxHeight = 'fit-content';
-            panel.removeEventListener('transitionend', handleTransitionEnd);
-          }
-        };
-        panel.addEventListener('transitionend', handleTransitionEnd);
-
-      } else {
-        // Prepare collapse by converting fit-content to explicit scrollHeight first
-        panel.style.maxHeight = panel.scrollHeight + 'px';
-        
-        // Force rendering paint pass
-        panel.offsetHeight;
-
-        panel.style.maxHeight = '0';
-        
-        const handleCollapseEnd = (e) => {
-          if (e.propertyName === 'max-height') {
-            panel.setAttribute('hidden', '');
-            panel.removeEventListener('transitionend', handleCollapseEnd);
-          }
-        };
-        panel.addEventListener('transitionend', handleCollapseEnd);
+      const finish = () => {
+        // A canceled collapse must never hide a panel that has since reopened.
+        if (currentTransition !== transitionId) return;
+        clearPendingTransition();
+        panel.hidden = !shouldOpen;
+        panel.style.maxHeight = shouldOpen ? 'none' : '0px';
+      };
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        finish();
+        return;
       }
+
+      panel.style.maxHeight = `${startHeight}px`;
+      panel.offsetHeight; // Commit the current height before starting or reversing a transition.
+      const targetHeight = shouldOpen ? panel.scrollHeight : 0;
+      if (startHeight === targetHeight) {
+        finish();
+        return;
+      }
+      transitionHandler = (event) => {
+        if (event.target === panel && event.propertyName === 'max-height') finish();
+      };
+      panel.addEventListener('transitionend', transitionHandler);
+      // Transitions can be canceled or disabled; keep hidden and aria-expanded in sync regardless.
+      transitionTimeout = window.setTimeout(finish, 450);
+      panel.style.maxHeight = `${targetHeight}px`;
     });
   });
 
@@ -275,56 +294,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // 7. FIXED WAT EARLY-BIRD + COHORT COUNTDOWN
-  const daysEl = document.getElementById('days');
-  const hoursEl = document.getElementById('hours');
-  const minutesEl = document.getElementById('minutes');
-  const secondsEl = document.getElementById('seconds');
-  const countdownTitle = document.getElementById('countdownTitle');
-  const countdownDescription = document.getElementById('countdownDescription');
+  // Enrollment countdown uses the shared cohort configuration.
   const countdownGrid = document.getElementById('countdownGrid');
-  const countdownExpired = document.getElementById('countdownExpired');
-  const EARLY_BIRD_END = new Date('2026-07-28T23:59:59+01:00').getTime();
-  const COHORT_START = new Date('2026-08-04T00:00:00+01:00').getTime();
-
-  const setTimerValues = (distance) => {
-    const days = Math.floor(distance / 86400000);
-    const hours = Math.floor((distance % 86400000) / 3600000);
-    const minutes = Math.floor((distance % 3600000) / 60000);
-    const seconds = Math.floor((distance % 60000) / 1000);
-    if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
-    if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
-    if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
-    if (secondsEl) secondsEl.textContent = String(seconds).padStart(2, '0');
-  };
-
   const processTimer = () => {
-    if (!countdownGrid) return;
+    const enrollment = window.TREV_ENROLLMENT;
+    if (!countdownGrid || !enrollment) return;
     const now = Date.now();
-    if (now <= EARLY_BIRD_END) {
-      countdownGrid.hidden = false;
-      countdownExpired.hidden = true;
-      countdownTitle.textContent = 'Early-Bird Registration Ends In';
-      countdownDescription.textContent = 'Register by 28 July at 11:59 PM WAT to secure early-bird pricing.';
-      setTimerValues(Math.max(0, EARLY_BIRD_END - now));
-    } else if (now < COHORT_START) {
-      countdownGrid.hidden = false;
-      countdownExpired.hidden = true;
-      countdownTitle.textContent = 'The August Cohort Begins In';
-      countdownDescription.textContent = 'Registration continues at standard pricing until the cohort begins.';
-      setTimerValues(Math.max(0, COHORT_START - now));
-    } else {
-      countdownGrid.hidden = true;
-      countdownExpired.hidden = false;
-      countdownTitle.textContent = 'Next Cohort Coming Soon';
-      countdownDescription.textContent = 'Join the waitlist to receive the next cohort dates and early enrollment information.';
-    }
+    const open = enrollment.isOpen(now);
+    const distance = Math.max(0, enrollment.closesAt - now);
+    const values = [Math.floor(distance / 86400000), Math.floor(distance % 86400000 / 3600000), Math.floor(distance % 3600000 / 60000), Math.floor(distance % 60000 / 1000)];
+    ['days', 'hours', 'minutes', 'seconds'].forEach((id, index) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(values[index]).padStart(2, '0');
+    });
+    countdownGrid.hidden = !open;
+    document.getElementById('countdownExpired').hidden = open;
+    document.getElementById('countdownTitle').textContent = open ? 'Enrollment Closes In' : 'Enrollment Is Closed';
+    document.getElementById('countdownDescription').textContent = open
+      ? 'Register by 6 November 2026. Classes start 9 November 2026.'
+      : 'The November cohort starts 9 November 2026. Contact us for future enrollment updates.';
   };
-
-  if (countdownGrid) {
-    window.setInterval(processTimer, 1000);
-    processTimer();
-  }
+  if (countdownGrid) { processTimer(); window.setInterval(processTimer, 1000); }
 
 
   // 8. BACK TO TOP VISIBILITY CONTROLLER
@@ -384,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const originalBtnHtml = submitBtn.innerHTML;
       submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
 
-      renderFormFeedback('Securing your seat...', 'success');
+      renderFormFeedback('Sending your waitlist request...', 'success');
 
       // POST to Google Forms.
       // ⚠️ REPLACE these 3 placeholders once your form is created:
@@ -408,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: formData.toString()
         });
 
-        renderFormFeedback(`Welcome, ${name}! You are on the waitlist. Check your email shortly.`, 'success');
+        renderFormFeedback(`Thanks, ${name}. Your waitlist request was sent. Contact support if you do not receive confirmation.`, 'success');
         waitlistForm.reset();
       } catch (err) {
         renderFormFeedback('Network error. Please check your connection and try again.', 'error');
@@ -564,3 +554,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
+

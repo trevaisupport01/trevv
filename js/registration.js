@@ -15,10 +15,32 @@
 
   if (!config || !form || !packageSelect) return;
 
+  const cohort = config.cohort || {};
+  const closesAt = new Date(cohort.closesAt || '2026-11-06T23:59:59.999+01:00').getTime();
+  let requestPending = false;
+  let requestSent = false;
+  let lastAttempt = null;
+  const isEnrollmentOpen = () => window.TREV_ENROLLMENT
+    ? window.TREV_ENROLLMENT.isOpen()
+    : Date.now() <= closesAt;
+
+  const applyEnrollmentState = () => {
+    const open = isEnrollmentOpen();
+    if (window.TREV_ENROLLMENT) {
+      window.TREV_ENROLLMENT.apply(document);
+    } else {
+      document.querySelectorAll('[data-enrollment-open]').forEach((element) => { element.hidden = !open; });
+      document.querySelectorAll('[data-enrollment-closed]').forEach((element) => { element.hidden = open; });
+    }
+    if (requestSent) form.hidden = true;
+    Array.from(form.elements).forEach((element) => { element.disabled = !open || requestPending || requestSent; });
+    return open;
+  };
+
   const endpointIsConfigured = () =>
     /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(config.appsScriptUrl);
 
-  const isEarlyBird = () => Date.now() <= new Date(config.pricing.earlyBirdEnds).getTime();
+  const isEarlyBird = () => config.pricing.earlyBirdEnabled === true && Date.now() <= new Date(config.pricing.earlyBirdEnds).getTime();
   const getPackage = () => {
     const base = config.packages[packageSelect.value] || config.packages.professional;
     const early = isEarlyBird();
@@ -36,7 +58,7 @@
     packagePrice.textContent = selected.price;
     amountDue.textContent = selected.price;
     document.querySelectorAll('[data-pricing-phase]').forEach((element) => {
-      element.textContent = selected.early ? 'Early-bird price — ends 28 July, 11:59 PM WAT' : 'Standard price';
+      element.textContent = selected.early ? 'Early-bird price' : 'Standard price';
     });
   };
 
@@ -108,9 +130,29 @@
   };
 
   const normalizePhone = (value) => value.replace(/[^0-9+]/g, '').slice(0, 20);
+  const normalizeText = (value, maxLength) => String(value || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, maxLength);
 
   const validate = () => {
     if (!form.reportValidity()) return false;
+
+    if (normalizeText(document.getElementById('fullName').value, 100).length < 2) {
+      showMessage('Please enter your full name using at least two characters.');
+      document.getElementById('fullName').focus();
+      return false;
+    }
+
+    if (!normalizeText(document.getElementById('country').value, 60)) {
+      showMessage('Please enter your country.');
+      document.getElementById('country').focus();
+      return false;
+    }
+
+    const email = normalizeText(document.getElementById('email').value, 120).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showMessage('Please enter a valid email address, such as you@example.com.');
+      document.getElementById('email').focus();
+      return false;
+    }
 
     const phone = normalizePhone(document.getElementById('whatsapp').value);
     if (phone.replace(/\D/g, '').length < 7) {
@@ -119,7 +161,7 @@
       return false;
     }
 
-    if (document.getElementById('paymentReference').value.trim().length < 3) {
+    if (normalizeText(document.getElementById('paymentReference').value, 120).length < 3) {
       showMessage('Enter the transfer reference or sender name so we can verify your payment.');
       document.getElementById('paymentReference').focus();
       return false;
@@ -129,7 +171,8 @@
   };
 
   const setLoading = (loading) => {
-    Array.from(form.elements).forEach((element) => { element.disabled = loading; });
+    requestPending = loading;
+    applyEnrollmentState();
     submitButton.innerHTML = loading
       ? '<span class="spinner" aria-hidden="true"></span><span>Submitting…</span>'
       : '<span>Submit Registration</span><span aria-hidden="true">→</span>';
@@ -141,54 +184,94 @@
     event.preventDefault();
     formMessage.hidden = true;
 
+    if (requestPending || requestSent) return;
+    if (!applyEnrollmentState()) return;
+
     if (!validate()) return;
 
     if (!endpointIsConfigured()) {
-      showMessage('Registration is not connected yet. The administrator must add the Apps Script Web App URL in js/config.js.');
+      showMessage('Registration is temporarily unavailable. Please contact support before making a payment.');
       return;
     }
 
     const selected = getPackage();
-    const registrationId = createRegistrationId();
+    const details = {
+      fullName: normalizeText(document.getElementById('fullName').value, 100),
+      email: normalizeText(document.getElementById('email').value, 120).toLowerCase(),
+      whatsapp: normalizePhone(document.getElementById('whatsapp').value),
+      country: normalizeText(document.getElementById('country').value, 60),
+      packageKey: selected.key,
+      paymentReference: normalizeText(document.getElementById('paymentReference').value, 120),
+      consent: document.getElementById('consent').checked ? 'true' : 'false',
+      website: normalizeText(document.getElementById('website').value, 200)
+    };
+    // Keep retries idempotent if the previous request reached the server but its
+    // response was lost. Personal details stay only in this page's memory.
+    const fingerprint = new URLSearchParams(details).toString();
+    if (!lastAttempt || lastAttempt.fingerprint !== fingerprint) {
+      lastAttempt = { fingerprint, registrationId: createRegistrationId() };
+    }
+    const registrationId = lastAttempt.registrationId;
     const data = new URLSearchParams({
       action: 'register',
       registrationId,
-      fullName: document.getElementById('fullName').value.trim(),
-      email: document.getElementById('email').value.trim().toLowerCase(),
-      whatsapp: normalizePhone(document.getElementById('whatsapp').value),
-      country: document.getElementById('country').value.trim(),
-      packageKey: selected.key,
-      paymentReference: document.getElementById('paymentReference').value.trim(),
-      consent: document.getElementById('consent').checked ? 'true' : 'false',
-      website: document.getElementById('website').value
+      ...details
     });
 
     setLoading(true);
     showMessage('Submitting your registration securely…', 'success');
 
     try {
-      await fetch(config.appsScriptUrl, {
+      const response = await fetch(config.appsScriptUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body: data.toString()
       });
 
+      // The existing Apps Script endpoint returns an opaque cross-origin response.
+      // Only a readable acknowledgement can confirm that the backend saved it.
+      let received = false;
+      if (response.type !== 'opaque') {
+        if (!response.ok) throw new Error('Registration was not accepted.');
+        const result = await response.json();
+        if (result.ok !== true) throw new Error('Registration was not accepted.');
+        received = true;
+      }
+
       successReference.textContent = registrationId;
+      setText('registrationOutcome', received ? 'Registration received' : 'Registration request sent');
+      setText('registrationReceiptMessage', received
+        ? 'Your registration and payment details have been received. Allow approximately 10 minutes for payment verification and delivery of your personal access code by email and WhatsApp.'
+        : 'Your registration request has been sent. Check your email for confirmation that it was received. Allow approximately 10 minutes for payment verification and delivery of your personal access code by email and WhatsApp.');
       const whatsappText = encodeURIComponent(
         `Hello TREV AI Support. I submitted registration ${registrationId} for the ${selected.label} (${selected.price}). My payment reference is ${document.getElementById('paymentReference').value.trim()}.`
       );
       supportLink.href = `https://wa.me/${config.supportWhatsApp}?text=${whatsappText}`;
+      requestSent = true;
+      requestPending = false;
+      form.removeAttribute('data-enrollment-open');
       form.hidden = true;
+      const formHeading = document.getElementById('registrationFormHeading');
+      if (formHeading) {
+        formHeading.removeAttribute('data-enrollment-open');
+        formHeading.hidden = true;
+      }
       successPanel.hidden = false;
       successPanel.focus();
       window.scrollTo({ top: successPanel.offsetTop - 120, behavior: 'smooth' });
     } catch (_) {
-      showMessage('We could not submit your registration. Check your internet connection and try again.');
+      showMessage('We could not confirm your registration. Check your connection and contact support if you have already paid. Do not make another payment.');
       setLoading(false);
     }
   });
 
   updatePackageOptions();
   selectPackageFromUrl();
+  applyEnrollmentState();
+  const remaining = closesAt - Date.now();
+  if (remaining >= 0 && remaining < 2147483647) {
+    window.setTimeout(applyEnrollmentState, remaining + 1);
+  }
 })();
+

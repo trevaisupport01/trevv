@@ -54,8 +54,9 @@
       document.getElementById('verifiedCertificateId').textContent = certificate.id || certificateId;
       document.getElementById('verifiedPackage').textContent = certificate.packageLabel || '—';
       document.getElementById('verifiedIssueDate').textContent = certificate.issueDate || '—';
-      document.getElementById('verifiedAttendance').textContent = certificate.attendance ? `${certificate.attendance}%` : 'Eligible';
-      document.getElementById('verifiedCapstone').textContent = certificate.capstoneStatus || 'Approved';
+      const attendance=String(certificate.attendance ?? '').trim();
+      document.getElementById('verifiedAttendance').textContent = attendance ? `${attendance.replace(/%$/, '')}%` : 'Not recorded';
+      document.getElementById('verifiedStatus').textContent = certificate.status || 'Issued';
       message.hidden = true;
       result.hidden = false;
       result.focus();
@@ -79,3 +80,4 @@
     verify(requested);
   }
 })();
+

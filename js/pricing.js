@@ -2,7 +2,7 @@
   'use strict';
   const config = window.TREV_CONFIG;
   if (!config) return;
-  const early = Date.now() <= new Date(config.pricing.earlyBirdEnds).getTime();
+  const early = config.pricing.earlyBirdEnabled === true && Date.now() <= new Date(config.pricing.earlyBirdEnds).getTime();
   const numberOnly = (price) => price.replace(/[^0-9,]/g, '');
 
   document.querySelectorAll('[data-package-card]').forEach((card) => {
@@ -37,7 +37,8 @@
       const remaining = new Date(config.pricing.earlyBirdEnds).getTime() - Date.now();
       const days = Math.max(0, Math.ceil(remaining / 86400000));
       const strong = banner.querySelector('strong');
-      if (strong) strong.textContent = `Ends 28 July 2026 at 11:59 PM WAT · ${days} day${days === 1 ? '' : 's'} remaining`;
+      if (strong) strong.textContent = `${days} day${days === 1 ? '' : 's'} remaining`;
     }
   }
 })();
+
