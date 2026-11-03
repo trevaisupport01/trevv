@@ -34,7 +34,11 @@
   const videoModalClose = document.getElementById('videoModalClose');
   const continueLearningButton = document.getElementById('continueLearningButton');
   const STORAGE_KEY = 'trevStudentAccessCode';
+  const DEVICE_KEY = 'trevDeviceId';
+  const REMEMBER_DAYS = 30;
+  const IDLE_SIGN_OUT_MINUTES = 60;
   let currentAccessCode = '';
+  let idleTimer = null;
   let modalTrigger = null;
   let currentProgressData = null;
   let currentOnboardingRatio = 0;
@@ -43,6 +47,44 @@
   let currentAccessLevel = '';
 
   if (!config || !loginForm) return;
+
+  // localStorage can throw in private browsing; the portal must still work.
+  const storage = {
+    get: (key) => { try { return localStorage.getItem(key); } catch (_) { return null; } },
+    set: (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* ignore */ } },
+    remove: (key) => { try { localStorage.removeItem(key); } catch (_) { /* ignore */ } }
+  };
+
+  // A random per-browser ID lets the server slow down repeated wrong codes.
+  const getDeviceId = () => {
+    let id = storage.get(DEVICE_KEY);
+    if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+      const bytes = new Uint8Array(12);
+      (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(bytes) : bytes.forEach((_, i) => { bytes[i] = Math.random() * 256; });
+      id = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      storage.set(DEVICE_KEY, id);
+    }
+    return id;
+  };
+
+  const saveRememberedCode = (code) => storage.set(STORAGE_KEY, JSON.stringify({ code, savedAt: Date.now() }));
+
+  const readRememberedCode = () => {
+    const raw = storage.get(STORAGE_KEY);
+    if (!raw) return '';
+    let record;
+    try { record = JSON.parse(raw); } catch (_) { record = null; }
+    // Older versions stored the plain code. Upgrade it and start the 30-day clock now.
+    if (!record || typeof record !== 'object') {
+      saveRememberedCode(raw);
+      return raw;
+    }
+    if (!record.code || Date.now() - Number(record.savedAt || 0) > REMEMBER_DAYS * 86400000) {
+      storage.remove(STORAGE_KEY);
+      return '';
+    }
+    return record.code;
+  };
 
   const endpointIsConfigured = () =>
     /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(config.appsScriptUrl);
@@ -93,12 +135,14 @@
     };
 
     const timeout = window.setTimeout(
-      () => cleanup(new Error('The portal took too long to respond.')),
+      () => cleanup(new Error('The portal is taking longer than usual to respond. Check your internet connection and try again.')),
       30000
     );
 
     window[callbackName] = (data) => cleanup(null, data);
-    script.onerror = () => cleanup(new Error('The portal service could not be reached.'));
+    script.onerror = () => cleanup(new Error(navigator.onLine === false
+      ? 'You appear to be offline. Reconnect to the internet and try again.'
+      : 'We could not reach the portal service. Check your internet connection and try again.'));
 
     const query = new URLSearchParams({ ...parameters, callback: callbackName });
     script.src = `${config.appsScriptUrl}?${query.toString()}`;
@@ -113,6 +157,7 @@
   };
 
   const validResourceUrl = (value) => {
+    if (!String(value || '').trim()) return ''; // blank must not resolve to this page
     try {
       const url = new URL(value, window.location.href);
       return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
@@ -131,8 +176,25 @@
     window.setTimeout(() => frame.remove(), 60000);
   };
 
+  // YouTube pages refuse to load inside the portal; their embed address works.
+  const youtubeEmbedUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.replace(/^www\.|^m\./, '');
+      let id = '';
+      if (host === 'youtu.be') id = url.pathname.slice(1);
+      else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+        id = url.searchParams.get('v') || (/^\/(?:embed|shorts|live)\/([^/?]+)/.exec(url.pathname) || [])[1] || '';
+      }
+      return /^[A-Za-z0-9_-]{6,20}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${id}?rel=0` : '';
+    } catch (_) {
+      return '';
+    }
+  };
+
   const openVideoModal = (resource) => {
-    const url = validResourceUrl(resource.url || '');
+    const raw = validResourceUrl(resource.url || '');
+    const url = youtubeEmbedUrl(raw) || raw;
     if (!url) return;
     videoModalTitle.textContent = resource.title || 'Course Video';
     videoFrame.src = url;
@@ -147,19 +209,35 @@
     document.body.classList.remove('modal-open');
   };
 
+  // Resources are sorted by their Category in the Resources sheet:
+  //   "Session 3 …"   → shown inside Session 3
+  //   "Announcement…" → shown on the Home tab
+  //   anything else   → "Other course resources" on the More tab
+  const resourceSession = (resource) => sessionNumberOf(resource.category);
+  const isAnnouncement = (resource) => /^announce/i.test(String(resource.category || '').trim());
+
   const renderResources = (resources) => {
+    const list = (Array.isArray(resources) ? resources : []).map((resource) =>
+      (!resource.video && youtubeEmbedUrl(resource.url || '') ? { ...resource, video: true, download: false } : resource));
+    currentResources = list;
+    renderAnnouncements(list.filter(isAnnouncement));
+    const general = list.filter((resource) => !isAnnouncement(resource) && !resourceSession(resource));
     resourcesContainer.replaceChildren();
 
-    if (!Array.isArray(resources) || resources.length === 0) {
-      const empty = createElement('div', 'portal-empty-state');
+    if (general.length === 0) {
+      const empty = createElement('div', 'portal-empty-state compact');
       empty.append(
-        createElement('h3', '', 'Your learning space is ready'),
-        createElement('p', '', 'Course resources will appear here as they are released. You will not need a new access code.')
+        createElement('h3', '', 'Nothing extra yet'),
+        createElement('p', '', 'Session recordings and slides appear inside each session. Other materials will appear here as they are released.')
       );
       resourcesContainer.appendChild(empty);
       return;
     }
+    resourcesContainer.appendChild(buildResourceGroups(general));
+  };
 
+  const buildResourceGroups = (resources) => {
+    const wrapper = document.createDocumentFragment();
     const groups = new Map();
     resources.forEach((resource) => {
       const category = resource.category || 'Course Resources';
@@ -206,8 +284,35 @@
       });
 
       section.appendChild(grid);
-      resourcesContainer.appendChild(section);
+      wrapper.appendChild(section);
     });
+    return wrapper;
+  };
+
+  const announcementsContainer = document.getElementById('portalAnnouncements');
+  const renderAnnouncements = (items) => {
+    if (!announcementsContainer) return;
+    announcementsContainer.replaceChildren();
+    if (!items.length) {
+      announcementsContainer.appendChild(createElement('p', 'portal-card-note', 'No announcements right now. Class updates are also posted in your WhatsApp group.'));
+      return;
+    }
+    const list = createElement('ul', 'announcement-list');
+    items.forEach((item) => {
+      const row = createElement('li', 'announcement-item');
+      row.append(createElement('strong', '', item.title || 'Update'));
+      if (item.description) row.append(createElement('p', '', item.description));
+      const url = validResourceUrl(item.url || '');
+      if (url) {
+        const link = createElement('a', '', item.buttonLabel || 'Open');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        row.append(link);
+      }
+      list.appendChild(row);
+    });
+    announcementsContainer.appendChild(list);
   };
 
   const latestSubmissionByAssignment = (submissions) => {
@@ -258,7 +363,10 @@
       return;
     }
 
-    assignments.forEach((assignment) => {
+    assignments.forEach((assignment) => assignmentsContainer.appendChild(buildAssignmentCard(assignment, latest)));
+  };
+
+  const buildAssignmentCard = (assignment, latest) => {
       const previous = latest.get(assignment.id);
       const card = createElement('article', 'assignment-card');
       const header = createElement('div', 'assignment-card-header');
@@ -309,8 +417,7 @@
       button.type = 'button';
       button.addEventListener('click', () => openAssignmentModal(assignment, button));
       card.appendChild(button);
-      assignmentsContainer.appendChild(card);
-    });
+      return card;
   };
 
   const renderSubmissions = (submissions) => {
@@ -351,10 +458,210 @@
 
 
 
-  const scrollToPortalSection = (id) => {
-    const element=document.getElementById(id);
-    if (element) element.scrollIntoView({behavior:'smooth',block:'start'});
+  /* ---------------- App views (Home · Sessions · Assignments · Prompts · More) ---------------- */
+
+  const VIEWS = ['home', 'sessions', 'assignments', 'prompts', 'more'];
+  // Which tab each existing section lives in, so old "scroll to" targets still work.
+  const SECTION_VIEW = {
+    portalOnboarding: 'more', portalTimetable: 'more', portalCommunity: 'more', portalResources: 'more',
+    portalGuidelines: 'more', portalAssignments: 'assignments', portalSubmissions: 'assignments',
+    promptLibrarySection: 'prompts', portalSessionList: 'sessions'
   };
+  const viewPanels = document.querySelectorAll('[data-view-panel]');
+  const viewTabs = document.querySelectorAll('.portal-tab[data-view]');
+  let currentView = 'home';
+
+  const showView = (view, options = {}) => {
+    if (!VIEWS.includes(view)) view = 'home';
+    currentView = view;
+    viewPanels.forEach((panel) => { panel.hidden = panel.dataset.viewPanel !== view; });
+    viewTabs.forEach((tab) => {
+      if (tab.dataset.view === view) tab.setAttribute('aria-current', 'page');
+      else tab.removeAttribute('aria-current');
+    });
+    if (view === 'sessions') {
+      if (options.session) openSession(options.session, { updateHash: false });
+      else closeSession({ updateHash: false });
+    }
+    if (options.updateHash !== false) {
+      const hash = options.session ? `#sessions/${options.session}` : `#${view}`;
+      if (window.location.hash !== hash) history.pushState(null, '', hash);
+    }
+    const target = options.scrollTo && document.getElementById(options.scrollTo);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else if (!options.keepScroll) window.scrollTo({ top: Math.max(0, dashboard.offsetTop - 90), behavior: 'instant' });
+  };
+
+  const routeFromHash = () => {
+    if (dashboard.hidden) return;
+    const match = /^#(home|sessions|assignments|prompts|more)(?:\/([1-7]))?$/.exec(window.location.hash);
+    if (!match) return showView('home', { updateHash: false });
+    showView(match[1], { session: match[2] ? Number(match[2]) : 0, updateHash: false });
+  };
+
+  const scrollToPortalSection = (id) => {
+    const match = /^session-([1-7])$/.exec(id || '');
+    if (match) return showView('sessions', { session: Number(match[1]) });
+    showView(SECTION_VIEW[id] || 'home', { scrollTo: id });
+  };
+
+  viewTabs.forEach((tab) => tab.addEventListener('click', () => showView(tab.dataset.view)));
+  window.addEventListener('popstate', routeFromHash);
+
+  /* ---------------- Sessions ---------------- */
+
+  // The course outline. Starter covers 1–4; Professional and VIP cover all 7.
+  const SESSIONS = [
+    { n: 1, title: 'Your AI Toolkit', tools: 'ChatGPT & Gemini', summary: 'Get set up on the two most-used AI assistants and do your first real tasks with them.', topics: ['Free ChatGPT and Gemini accounts on phone and laptop', 'What AI is good at, what it gets wrong, and why you always check', 'First tasks: rewrite a message, summarise a document, plan your week'] },
+    { n: 2, title: 'Prompts That Work', tools: 'ChatGPT & Claude', summary: 'Get the answer you actually want, the first time or after a quick fix.', topics: ['The 4-part prompt: role, task, context, format', 'Giving examples and improving drafts step by step', 'Saving your best prompts as reusable templates'] },
+    { n: 3, title: 'AI for Everyday Work', tools: 'ChatGPT, Gemini, Claude & Grok', summary: 'Use AI on the writing and planning you already do.', topics: ['Emails, CVs, cover letters, reports and posts', 'Changing tone for a boss, client or international audience', 'Which tool for which job: your one-page cheat sheet'] },
+    { n: 4, title: 'Research You Can Trust', tools: 'Perplexity & NotebookLM', summary: 'Find information you can rely on and use AI on your own documents.', topics: ['Research with sources you can check', 'NotebookLM on your own notes and documents', 'Spotting made-up facts and what never to paste into AI'] },
+    { n: 5, title: 'Create Images & Video', tools: 'AI image tools, Canva, Veo & Kling', summary: 'Turn ideas into flyers, social graphics and short videos.', topics: ['Flyers, posts and product images', 'Short videos: script, visuals and captions', 'Copyright, real faces and labelling AI content'], advanced: true },
+    { n: 6, title: 'AI Agents & Automation', tools: 'Gems, custom GPTs, Zapier & Make', summary: 'Go from asking AI questions to having it do repeat work for you.', topics: ['Your own assistant that remembers your instructions', 'AI agents that carry out tasks, and when to trust them', 'Your first Zapier or Make automation'], advanced: true },
+    { n: 7, title: 'Capstone & Graduation', tools: 'Your project', summary: 'Show what you built and get feedback.', topics: ['Professional: present a working AI workflow', 'VIP: present an AI plan for your business', 'Instructor and peer feedback'], advanced: true }
+  ];
+
+  const sessionListContainer = document.getElementById('portalSessionList');
+  const sessionDetailContainer = document.getElementById('portalSessionDetail');
+  let currentResources = [];
+  let currentAssignments = [];
+
+  const sessionNumberOf = (value) => {
+    const match = /^\s*(?:session|class|s)\s*0?([1-7])\b/i.exec(String(value || ''));
+    return match ? Number(match[1]) : 0;
+  };
+  const assignmentSession = (assignment) =>
+    sessionNumberOf(assignment.id) || sessionNumberOf(String(assignment.id || '').replace(/^SESSION[-_]/i, 'Session ')) ||
+    Number((/session\s*0?([1-7])\b/i.exec(assignment.title || '') || [])[1] || 0);
+
+  const sessionIncluded = (n) => currentAccessLevel !== 'STARTER' || n <= 4;
+
+  const sessionState = (n) => {
+    const entry = { session: `Session ${n}`, title: '' };
+    const progress = currentProgressData || {};
+    if (progress.certificatePolicyVersion === 2 && hasSessionRecord(progress.completedSessions, entry)) return 'completed';
+    if (hasSessionRecord(progress.attendedSessions, entry)) return 'attended';
+    return 'upcoming';
+  };
+
+  const timetableFor = (n) => currentTimetable.find((entry) => sessionNumberOf(entry.session) === n);
+
+  const stateLabel = { completed: 'Completed', attended: 'Attended', upcoming: 'Upcoming', locked: 'Professional & VIP' };
+
+  const renderSessions = () => {
+    if (!sessionListContainer) return;
+    sessionListContainer.replaceChildren();
+    const nextOpen = SESSIONS.find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
+    SESSIONS.forEach((session) => {
+      const included = sessionIncluded(session.n);
+      const state = included ? sessionState(session.n) : 'locked';
+      const button = createElement('button', `session-row session-${state}${nextOpen && nextOpen.n === session.n ? ' session-next' : ''}`);
+      button.type = 'button';
+      const number = createElement('span', 'session-row-num', String(session.n).padStart(2, '0'));
+      const body = createElement('span', 'session-row-body');
+      body.append(createElement('strong', '', session.title), createElement('small', '', session.tools));
+      const slot = timetableFor(session.n);
+      if (slot && slot.date) body.append(createElement('small', 'session-row-date', `${slot.date}${slot.classTime ? ' · ' + slot.classTime : ''}`));
+      const status = createElement('span', `session-row-status status-${state}`, nextOpen && nextOpen.n === session.n ? 'Up next' : stateLabel[state]);
+      button.append(number, body, status);
+      button.addEventListener('click', () => showView('sessions', { session: session.n }));
+      sessionListContainer.appendChild(button);
+    });
+  };
+
+  const openSession = (n, options = {}) => {
+    const session = SESSIONS.find((s) => s.n === n);
+    if (!session || !sessionDetailContainer) return;
+    sessionListContainer.hidden = true;
+    sessionDetailContainer.hidden = false;
+    sessionDetailContainer.replaceChildren();
+
+    const back = createElement('button', 'link-button session-back', '← All sessions');
+    back.type = 'button';
+    back.addEventListener('click', () => showView('sessions'));
+
+    const header = createElement('div', 'session-detail-header');
+    const included = sessionIncluded(n);
+    const state = included ? sessionState(n) : 'locked';
+    header.append(
+      createElement('span', 'section-tag', `Session ${n} · ${session.tools}`),
+      createElement('h2', '', session.title),
+      createElement('p', '', session.summary),
+      createElement('span', `session-row-status status-${state}`, stateLabel[state])
+    );
+    sessionDetailContainer.append(back, header);
+
+    if (!included) {
+      const locked = createElement('div', 'portal-empty-state');
+      locked.append(
+        createElement('h3', '', 'Included in Professional and VIP'),
+        createElement('p', '', 'Your Starter package covers sessions 1–4. Upgrade to unlock images and video, AI agents and automation, and the capstone project.')
+      );
+      const upgrade = createElement('a', 'btn btn-primary btn-sm', 'Ask About Upgrading');
+      upgrade.href = `https://wa.me/${config.supportWhatsApp || '2348139908559'}?text=${encodeURIComponent('Hello TREV AI Support. I am a Starter student and would like to upgrade to Professional.')}`;
+      upgrade.target = '_blank';
+      upgrade.rel = 'noopener noreferrer';
+      locked.appendChild(upgrade);
+      sessionDetailContainer.appendChild(locked);
+      return;
+    }
+
+    const slot = timetableFor(n);
+    const when = createElement('div', 'session-detail-when portal-card');
+    when.append(
+      createElement('span', 'portal-card-label', 'LIVE CLASS'),
+      createElement('strong', '', slot && slot.date ? `${slot.date}${slot.day ? ' (' + slot.day + ')' : ''}` : 'Date to be announced'),
+      createElement('small', '', slot ? `${slot.classTime || 'Time to be announced'} · ${slot.duration || 'Duration to be announced'}` : 'Check your WhatsApp group for the schedule')
+    );
+
+    const topics = createElement('div', 'session-detail-topics portal-card');
+    topics.appendChild(createElement('span', 'portal-card-label', 'WHAT YOU WILL LEARN'));
+    const list = createElement('ul');
+    session.topics.forEach((topic) => list.appendChild(createElement('li', '', topic)));
+    topics.appendChild(list);
+
+    const top = createElement('div', 'session-detail-grid');
+    top.append(when, topics);
+    sessionDetailContainer.appendChild(top);
+
+    sessionDetailContainer.appendChild(createElement('h3', 'session-detail-subhead', 'Recording, slides & materials'));
+    const materials = currentResources.filter((resource) => !isAnnouncement(resource) && resourceSession(resource) === n);
+    if (materials.length) sessionDetailContainer.appendChild(buildResourceGroups(materials));
+    else sessionDetailContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Materials for this session will appear here after the class. You will not need a new code.'));
+
+    sessionDetailContainer.appendChild(createElement('h3', 'session-detail-subhead', 'Assignment'));
+    const work = currentAssignments.filter((assignment) => assignmentSession(assignment) === n);
+    if (work.length) {
+      const latest = latestSubmissionByAssignment(currentSubmissions);
+      const wrap = createElement('div', 'portal-assignments');
+      work.forEach((assignment) => wrap.appendChild(buildAssignmentCard(assignment, latest)));
+      sessionDetailContainer.appendChild(wrap);
+    } else {
+      sessionDetailContainer.appendChild(createElement('div', 'portal-empty-state compact', 'The assignment for this session has not been released yet.'));
+    }
+
+    const nav = createElement('div', 'session-detail-nav');
+    if (n > 1) {
+      const prev = createElement('button', 'btn btn-outline btn-sm', `← Session ${n - 1}`);
+      prev.type = 'button';
+      prev.addEventListener('click', () => showView('sessions', { session: n - 1 }));
+      nav.appendChild(prev);
+    }
+    if (n < SESSIONS.length) {
+      const next = createElement('button', 'btn btn-outline btn-sm', `Session ${n + 1} →`);
+      next.type = 'button';
+      next.addEventListener('click', () => showView('sessions', { session: n + 1 }));
+      nav.appendChild(next);
+    }
+    sessionDetailContainer.appendChild(nav);
+    if (options.updateHash) history.pushState(null, '', `#sessions/${n}`);
+  };
+
+  function closeSession() {
+    if (!sessionDetailContainer) return;
+    sessionDetailContainer.hidden = true;
+    sessionListContainer.hidden = false;
+  }
 
   const hasSessionRecord = (records, entry) => {
     const normalize = (value) => String(value || '').trim().toLowerCase();
@@ -399,11 +706,12 @@
       certificateDetail.textContent=`Attend and complete ${certificateRequiredSessions} of ${requiredSessions} classes`;
     }
 
-    let target='portalResources'; let label='Continue Learning';
-    if (currentOnboardingRatio<1) { target='portalOnboarding'; label='Continue Onboarding'; }
+    const nextSession = SESSIONS.find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
+    let target = nextSession ? `session-${nextSession.n}` : 'portalSessionList';
+    let label = nextSession ? `Continue: Session ${nextSession.n}, ${nextSession.title}` : 'Review Your Sessions';
+    if (currentOnboardingRatio<1) { target='portalOnboarding'; label='Finish Your Setup Checklist'; }
     else if (currentSubmissions.some((item)=>String(item.status).toUpperCase()==='REVISION REQUESTED')) { target='portalSubmissions'; label='Review Instructor Feedback'; }
     else if ((progress.approvedAssignments||0)<(progress.requiredAssignments||0)) { target='portalAssignments'; label='Continue with Assignments'; }
-    else if (next) { target='portalTimetable'; label='View Next Live Class'; }
     continueLearningButton.dataset.target=target;
     continueLearningButton.firstChild.textContent=label+' ';
     document.getElementById('progressSummary').textContent=completionTracked
@@ -421,6 +729,13 @@
       createElement('h3', '', community?.groupName || 'TREV AI Community')
     );
     top.appendChild(titleWrap);
+
+    const homeJoin = document.getElementById('nextClassJoin');
+    if (homeJoin) {
+      const invite = community?.inviteUrl ? validResourceUrl(community.inviteUrl) : '';
+      homeJoin.hidden = !invite;
+      if (invite) homeJoin.href = invite;
+    }
 
     if (community?.inviteUrl && validResourceUrl(community.inviteUrl)) {
       const join = createElement('a', 'btn btn-secondary btn-sm', 'Join Community');
@@ -455,11 +770,13 @@
     onboardingContainer.replaceChildren();
     if (!Array.isArray(items) || items.length === 0) {
       onboardingContainer.appendChild(createElement('div', 'portal-empty-state compact', 'Your checklist is being prepared.'));
+      currentOnboardingRatio = 1; // nothing to finish, so don't send students here
       return;
     }
     const storageKey = `trevOnboarding:${registrationId}`;
     let completed = [];
-    try { completed = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch (_) { completed = []; }
+    try { completed = JSON.parse(storage.get(storageKey) || '[]'); } catch (_) { completed = []; }
+    if (!Array.isArray(completed)) completed = [];
     const list = createElement('div', 'onboarding-list');
 
     items.forEach((item, index) => {
@@ -479,7 +796,7 @@
         const set = new Set(completed);
         if (checkbox.checked) set.add(itemKey); else set.delete(itemKey);
         completed = Array.from(set);
-        localStorage.setItem(storageKey, JSON.stringify(completed));
+        storage.set(storageKey, JSON.stringify(completed));
         label.classList.toggle('completed', checkbox.checked);
         updateProgress();
       });
@@ -651,6 +968,7 @@
     currentProgressData = response.progress || {};
     currentTimetable = (response.timetable || []).filter(isCurrentCohortSession);
     currentSubmissions = response.submissions || [];
+    currentAssignments = Array.isArray(response.assignments) ? response.assignments : [];
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
     document.getElementById('studentRegistrationId').textContent = response.student.registrationId || '—';
     document.getElementById('studentPackage').textContent = response.package.label || response.package.key || 'Enrolled Package';
@@ -662,17 +980,29 @@
     renderAssignments(response.assignments, response.submissions);
     renderSubmissions(response.submissions);
     renderGuidelines(response.communityGuidelines || []);
+    renderSessions();
     updateDashboardProgress();
     if (!allPrompts.length || !options.refresh) renderPromptLibrary(response.package.accessLevel);
+    showWelcomeGuide(response.student.registrationId || 'student');
 
-    if (rememberInput.checked) localStorage.setItem(STORAGE_KEY, code);
-    else localStorage.removeItem(STORAGE_KEY);
+    if (!options.refresh) {
+      if (rememberInput.checked) saveRememberedCode(code);
+      else storage.remove(STORAGE_KEY);
+    }
+    resetIdleTimer();
 
     loginPanel.hidden = true;
     dashboard.hidden = false;
-    if (!options.refresh) {
-      dashboard.focus();
-      window.scrollTo({ top: dashboard.offsetTop - 100, behavior: 'smooth' });
+    document.body.classList.add('portal-signed-in');
+    if (options.refresh) {
+      // Keep the student where they were, but redraw an open session with fresh data.
+      if (currentView === 'sessions' && sessionDetailContainer && !sessionDetailContainer.hidden) {
+        const open = /^#sessions\/([1-7])$/.exec(window.location.hash);
+        if (open) openSession(Number(open[1]));
+      }
+    } else {
+      dashboard.focus({ preventScroll: true });
+      routeFromHash();
     }
   };
 
@@ -695,16 +1025,22 @@
     }
 
     try {
-      const response = await jsonpRequest({ action: 'verify', code });
+      const response = await jsonpRequest({ action: 'verify', code, clientId: getDeviceId() });
       if (!response || !response.valid) {
         const reasonMessages = {
           SUSPENDED: 'This access code has been suspended. Contact TREV AI Support.',
           REJECTED: 'This registration was not approved. Contact TREV AI Support.',
-          PENDING: 'Your registration is still awaiting payment verification.',
+          PENDING: 'Your registration is still awaiting payment verification. Your code will arrive by email and WhatsApp once your payment is confirmed (usually within 10 minutes).',
           EXPIRED: 'Your package access period has ended. Contact TREV AI Support if you need help with your account.',
-          APPROVAL_REVIEW: 'Your access record needs a support review. Contact TREV AI Support with your registration details.'
+          APPROVAL_REVIEW: 'Your access record needs a support review. Contact TREV AI Support with your registration details.',
+          ERASED: 'This account’s data was deleted at the student’s request, so the code no longer works.',
+          RATE_LIMITED: 'Too many incorrect codes were tried from this device. Wait 15 minutes, then try again, or use “Lost your access code?” below.'
         };
-        showMessage(reasonMessages[response && response.status] || 'That access code is invalid. Check it carefully or contact support.');
+        const fallback = response && response.error
+          ? 'The portal service is having a problem right now. Please try again in a few minutes.'
+          : 'We could not find that access code. Check it matches your approval email exactly (for example TREV-PRO-AB12-CD34), or use “Lost your access code?” below.';
+        showMessage(reasonMessages[response && response.status] || fallback);
+        if (response && ['INVALID', 'SUSPENDED', 'REJECTED', 'EXPIRED', 'ERASED'].includes(response.status)) storage.remove(STORAGE_KEY);
         if (options.refresh) {
           dashboard.hidden = true;
           loginPanel.hidden = false;
@@ -725,19 +1061,179 @@
     verifyCode(codeInput.value);
   });
 
-  logoutButton.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEY);
+  const signOut = (message) => {
+    storage.remove(STORAGE_KEY);
+    window.clearTimeout(idleTimer);
+    idleTimer = null;
     currentAccessCode = '';
     codeInput.value = '';
     rememberInput.checked = false;
-    closeAssignmentModal();
-    closeVideoModal();
+    if (!assignmentModal.hidden) closeAssignmentModal();
+    if (!videoModal.hidden) closeVideoModal();
     dashboard.hidden = true;
     loginPanel.hidden = false;
-    loginMessage.hidden = true;
+    document.body.classList.remove('portal-signed-in');
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (message) showMessage(message, 'success');
+    else loginMessage.hidden = true;
     codeInput.focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Sessions that were not "remembered" end after an hour without activity,
+  // so a shared or public computer does not stay signed in.
+  function resetIdleTimer() {
+    window.clearTimeout(idleTimer);
+    if (!currentAccessCode || rememberInput.checked) return;
+    idleTimer = window.setTimeout(() => {
+      signOut(`You were signed out after ${IDLE_SIGN_OUT_MINUTES} minutes of inactivity. Enter your code to continue.`);
+    }, IDLE_SIGN_OUT_MINUTES * 60000);
+  }
+  let lastActivity = 0;
+  ['click', 'keydown', 'scroll', 'touchstart'].forEach((type) => {
+    window.addEventListener(type, () => {
+      if (!idleTimer || Date.now() - lastActivity < 30000) return;
+      lastActivity = Date.now();
+      resetIdleTimer();
+    }, { passive: true });
   });
+
+  logoutButton.addEventListener('click', () => signOut('You have signed out.'));
+
+  // First-visit welcome guide, hidden for good once dismissed.
+  const welcome = document.getElementById('portalWelcome');
+  let welcomeKey = '';
+  function showWelcomeGuide(registrationId) {
+    if (!welcome) return;
+    welcomeKey = `trevWelcomeDismissed:${registrationId}`;
+    welcome.hidden = storage.get(welcomeKey) === '1';
+  }
+  if (welcome) {
+    document.getElementById('portalWelcomeDismiss').addEventListener('click', () => {
+      welcome.hidden = true;
+      if (welcomeKey) storage.set(welcomeKey, '1');
+    });
+    welcome.querySelectorAll('[data-welcome-target]').forEach((button) => {
+      button.addEventListener('click', () => scrollToPortalSection(button.dataset.welcomeTarget));
+    });
+  }
+
+  // "Lost your access code?" — the server always gives the same reply so
+  // nobody can use this form to check who is enrolled.
+  const lostToggle = document.getElementById('lostCodeToggle');
+  const lostForm = document.getElementById('lostCodeForm');
+  const lostEmail = document.getElementById('lostCodeEmail');
+  const lostMessage = document.getElementById('lostCodeMessage');
+  const lostSubmit = document.getElementById('lostCodeSubmit');
+  const showLostMessage = (text, type = 'error') => {
+    lostMessage.textContent = text;
+    lostMessage.className = `form-message ${type}`;
+    lostMessage.hidden = false;
+  };
+  if (lostToggle && lostForm) {
+    lostToggle.addEventListener('click', () => {
+      const open = lostForm.hidden;
+      lostForm.hidden = !open;
+      lostToggle.setAttribute('aria-expanded', String(open));
+      if (open) lostEmail.focus();
+    });
+    lostEmail.addEventListener('input', () => {
+      lostEmail.removeAttribute('aria-invalid');
+      lostMessage.hidden = true;
+    });
+    lostForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = lostEmail.value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        lostEmail.setAttribute('aria-invalid', 'true');
+        showLostMessage('Enter the full email address you registered with, such as you@example.com.');
+        lostEmail.focus();
+        return;
+      }
+      if (!endpointIsConfigured()) {
+        showLostMessage('This feature is not available right now. Please contact support on WhatsApp.');
+        return;
+      }
+      lostSubmit.disabled = true;
+      lostSubmit.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Sending…</span>';
+      try {
+        await fetch(config.appsScriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: new URLSearchParams({ action: 'resendcode', email }).toString()
+        });
+        showLostMessage('If that email matches an approved enrollment, your access code is on its way. Check your inbox and spam folder in the next few minutes.', 'success');
+        lostForm.reset();
+      } catch (_) {
+        showLostMessage('We could not send the request. Check your internet connection and try again.');
+      } finally {
+        lostSubmit.disabled = false;
+        lostSubmit.textContent = 'Email My Code';
+      }
+    });
+  }
+
+  // "Delete my data" — sends a request; the admin completes it from the Sheet.
+  const deleteOpen = document.getElementById('deleteDataOpen');
+  const deleteForm = document.getElementById('deleteDataForm');
+  const deleteConfirm = document.getElementById('deleteDataConfirm');
+  const deleteMessage = document.getElementById('deleteDataMessage');
+  const deleteSubmit = document.getElementById('deleteDataSubmit');
+  const showDeleteMessage = (text, type = 'error') => {
+    deleteMessage.textContent = text;
+    deleteMessage.className = `form-message ${type}`;
+    deleteMessage.hidden = false;
+  };
+  if (deleteOpen && deleteForm) {
+    deleteOpen.addEventListener('click', () => {
+      deleteForm.hidden = false;
+      deleteOpen.hidden = true;
+      deleteConfirm.focus();
+    });
+    document.getElementById('deleteDataCancel').addEventListener('click', () => {
+      deleteForm.reset();
+      deleteForm.hidden = true;
+      deleteMessage.hidden = true;
+      deleteOpen.hidden = false;
+      deleteOpen.focus();
+    });
+    deleteForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!deleteConfirm.checked) {
+        showDeleteMessage('Tick the box to confirm you understand this cannot be undone.');
+        deleteConfirm.focus();
+        return;
+      }
+      if (!currentAccessCode) {
+        showDeleteMessage('Your session has ended. Sign in again, then retry.');
+        return;
+      }
+      deleteSubmit.disabled = true;
+      deleteSubmit.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Sending…</span>';
+      try {
+        const result = await jsonpRequest({
+          action: 'datarequest',
+          code: currentAccessCode,
+          note: document.getElementById('deleteDataNote').value.trim().slice(0, 500)
+        });
+        if (result && result.ok) {
+          showDeleteMessage(`Request received (${result.requestId}). We have emailed you a confirmation and will complete it within 30 days.`, 'success');
+          deleteSubmit.hidden = true;
+          document.getElementById('deleteDataCancel').textContent = 'Close';
+          return;
+        }
+        showDeleteMessage(result && result.status === 'RATE_LIMITED'
+          ? 'You have already sent this request. We will email you once it is complete.'
+          : 'We could not send your request. Please contact support on WhatsApp.');
+      } catch (error) {
+        showDeleteMessage(error.message || 'We could not send your request. Try again shortly.');
+      } finally {
+        deleteSubmit.disabled = false;
+        if (!deleteSubmit.hidden) deleteSubmit.textContent = 'Send Deletion Request';
+      }
+    });
+  }
 
   assignmentModalClose.addEventListener('click', closeAssignmentModal);
   assignmentModal.querySelector('[data-close-assignment-modal]').addEventListener('click', closeAssignmentModal);
@@ -764,7 +1260,7 @@
   promptCategory.addEventListener('change', filterPrompts);
   promptLoadMore.addEventListener('click', () => drawPromptResults(false));
 
-  const savedCode = localStorage.getItem(STORAGE_KEY);
+  const savedCode = readRememberedCode();
   if (savedCode) {
     codeInput.value = savedCode;
     rememberInput.checked = true;

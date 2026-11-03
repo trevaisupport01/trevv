@@ -132,42 +132,118 @@
   const normalizePhone = (value) => value.replace(/[^0-9+]/g, '').slice(0, 20);
   const normalizeText = (value, maxLength) => String(value || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, maxLength);
 
+  // Field-by-field rules. Each returns an error message, or '' when valid.
+  const rules = {
+    fullName: (value) => {
+      const name = normalizeText(value, 100);
+      if (!name) return 'Enter your full name.';
+      if (name.length < 2 || !/\p{L}/u.test(name)) return 'Enter your full name using letters, as it appears on your bank transfer.';
+      return '';
+    },
+    country: (value) => (normalizeText(value, 60) ? '' : 'Enter your country.'),
+    email: (value) => {
+      const email = normalizeText(value, 120).toLowerCase();
+      if (!email) return 'Enter your email address. Your access code will be sent here.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return 'Enter a complete email address, such as you@example.com.';
+      return '';
+    },
+    whatsapp: (value) => {
+      const digits = normalizePhone(value).replace(/\D/g, '');
+      if (!digits) return 'Enter your WhatsApp number. We send your access code here too.';
+      if (digits.length < 7 || digits.length > 15) return 'Enter a WhatsApp number with 7 to 15 digits, including your country code (for example +234 801 234 5678).';
+      return '';
+    },
+    paymentReference: (value) => (normalizeText(value, 120).length >= 3
+      ? ''
+      : 'Enter the transfer reference or the name on the sending account, so we can match your payment.'),
+    consent: (_, element) => (element.checked ? '' : 'Tick this box to confirm your details and accept the policies.')
+  };
+
+  // Common misspellings of popular email providers.
+  const domainFixes = {
+    'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmail.co': 'gmail.com',
+    'gmail.con': 'gmail.com', 'gmaill.com': 'gmail.com', 'gnail.com': 'gmail.com', 'yaho.com': 'yahoo.com',
+    'yahoo.co': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'hotmail.co': 'hotmail.com',
+    'outlok.com': 'outlook.com', 'outlook.co': 'outlook.com', 'iclod.com': 'icloud.com'
+  };
+
+  const errorSlot = (element) => element.closest('.form-group') || element.closest('label') || element.parentElement;
+
+  const setFieldError = (element, message) => {
+    const slot = errorSlot(element);
+    const id = `${element.id}-error`;
+    let error = document.getElementById(id);
+    if (!message) {
+      element.removeAttribute('aria-invalid');
+      if (error) error.remove();
+      element.setAttribute('aria-describedby', (element.getAttribute('aria-describedby') || '').replace(id, '').trim());
+      if (!element.getAttribute('aria-describedby')) element.removeAttribute('aria-describedby');
+      return;
+    }
+    element.setAttribute('aria-invalid', 'true');
+    if (!error) {
+      error = document.createElement('span');
+      error.id = id;
+      error.className = 'field-error';
+      slot.insertAdjacentElement(slot.tagName === 'LABEL' ? 'afterend' : 'beforeend', error);
+      const described = element.getAttribute('aria-describedby') || '';
+      if (!described.includes(id)) element.setAttribute('aria-describedby', `${described} ${id}`.trim());
+    }
+    error.textContent = message;
+  };
+
+  const showEmailSuggestion = () => {
+    const input = document.getElementById('email');
+    const id = 'email-hint';
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const value = normalizeText(input.value, 120).toLowerCase();
+    const at = value.lastIndexOf('@');
+    if (at < 1) return;
+    const fix = domainFixes[value.slice(at + 1)];
+    if (!fix) return;
+    const suggestion = `${value.slice(0, at)}@${fix}`;
+    const hint = document.createElement('span');
+    hint.id = id;
+    hint.className = 'field-hint';
+    hint.append('Did you mean ');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = suggestion;
+    button.addEventListener('click', () => { input.value = suggestion; hint.remove(); input.focus(); });
+    hint.append(button, '?');
+    errorSlot(input).appendChild(hint);
+  };
+
+  const checkField = (name) => {
+    const element = document.getElementById(name);
+    if (!element || !rules[name]) return true;
+    const message = rules[name](element.value, element);
+    setFieldError(element, message);
+    return !message;
+  };
+
+  Object.keys(rules).forEach((name) => {
+    const element = document.getElementById(name);
+    if (!element) return;
+    // Check when the visitor leaves a field, then live once it has an error.
+    element.addEventListener('blur', () => {
+      if (element.value || element.type === 'checkbox') checkField(name);
+      if (name === 'email') showEmailSuggestion();
+    });
+    element.addEventListener(element.type === 'checkbox' ? 'change' : 'input', () => {
+      if (element.getAttribute('aria-invalid') === 'true') checkField(name);
+    });
+  });
+
   const validate = () => {
-    if (!form.reportValidity()) return false;
-
-    if (normalizeText(document.getElementById('fullName').value, 100).length < 2) {
-      showMessage('Please enter your full name using at least two characters.');
-      document.getElementById('fullName').focus();
-      return false;
-    }
-
-    if (!normalizeText(document.getElementById('country').value, 60)) {
-      showMessage('Please enter your country.');
-      document.getElementById('country').focus();
-      return false;
-    }
-
-    const email = normalizeText(document.getElementById('email').value, 120).toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showMessage('Please enter a valid email address, such as you@example.com.');
-      document.getElementById('email').focus();
-      return false;
-    }
-
-    const phone = normalizePhone(document.getElementById('whatsapp').value);
-    if (phone.replace(/\D/g, '').length < 7) {
-      showMessage('Please enter a valid WhatsApp number, including the country code.');
-      document.getElementById('whatsapp').focus();
-      return false;
-    }
-
-    if (normalizeText(document.getElementById('paymentReference').value, 120).length < 3) {
-      showMessage('Enter the transfer reference or sender name so we can verify your payment.');
-      document.getElementById('paymentReference').focus();
-      return false;
-    }
-
-    return true;
+    const invalid = Object.keys(rules).filter((name) => !checkField(name));
+    if (!invalid.length) return true;
+    showMessage(invalid.length === 1
+      ? 'Please fix the highlighted field before submitting.'
+      : `Please fix the ${invalid.length} highlighted fields before submitting.`);
+    document.getElementById(invalid[0]).focus();
+    return false;
   };
 
   const setLoading = (loading) => {
@@ -261,7 +337,9 @@
       successPanel.focus();
       window.scrollTo({ top: successPanel.offsetTop - 120, behavior: 'smooth' });
     } catch (_) {
-      showMessage('We could not confirm your registration. Check your connection and contact support if you have already paid. Do not make another payment.');
+      showMessage(navigator.onLine === false
+        ? 'You appear to be offline, so your registration was not sent. Reconnect and press Submit again. Do not make another payment.'
+        : 'We could not confirm your registration. Press Submit again in a moment. If it still fails and you have already paid, contact support on WhatsApp. Do not make another payment.');
       setLoading(false);
     }
   });
