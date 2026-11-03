@@ -514,9 +514,9 @@
   const SESSIONS = [
     { n: 1, title: 'Your AI Toolkit', tools: 'ChatGPT & Gemini', summary: 'Get set up on the two most-used AI assistants and do your first real tasks with them.', topics: ['Free ChatGPT and Gemini accounts on phone and laptop', 'What AI is good at, what it gets wrong, and why you always check', 'First tasks: rewrite a message, summarise a document, plan your week'] },
     { n: 2, title: 'Prompts That Work', tools: 'ChatGPT & Claude', summary: 'Get the answer you actually want, the first time or after a quick fix.', topics: ['The 4-part prompt: role, task, context, format', 'Giving examples and improving drafts step by step', 'Saving your best prompts as reusable templates'] },
-    { n: 3, title: 'AI for Everyday Work', tools: 'ChatGPT, Gemini, Claude & Grok', summary: 'Use AI on the writing and planning you already do.', topics: ['Emails, CVs, cover letters, reports and posts', 'Changing tone for a boss, client or international audience', 'Which tool for which job: your one-page cheat sheet'] },
+    { n: 3, title: 'AI for Everyday Work', vipTitle: 'AI for Business Communication', tools: 'ChatGPT, Gemini, Claude & Grok', summary: 'Use AI on the writing and planning you already do.', topics: ['Emails, CVs, cover letters, reports and posts', 'Changing tone for a boss, client or international audience', 'Which tool for which job: your one-page cheat sheet'] },
     { n: 4, title: 'Research You Can Trust', tools: 'Perplexity & NotebookLM', summary: 'Find information you can rely on and use AI on your own documents.', topics: ['Research with sources you can check', 'NotebookLM on your own notes and documents', 'Spotting made-up facts and what never to paste into AI'] },
-    { n: 5, title: 'Create Images & Video', tools: 'AI image tools, Canva, Veo & Kling', summary: 'Turn ideas into flyers, social graphics and short videos.', topics: ['Flyers, posts and product images', 'Short videos: script, visuals and captions', 'Copyright, real faces and labelling AI content'], advanced: true },
+    { n: 5, title: 'Create Images & Video', vipTitle: 'Brand Visuals & Video', tools: 'AI image tools, Canva, Veo & Kling', summary: 'Turn ideas into flyers, social graphics and short videos.', topics: ['Flyers, posts and product images', 'Short videos: script, visuals and captions', 'Copyright, real faces and labelling AI content'], advanced: true },
     { n: 6, title: 'AI Agents & Automation', tools: 'Gems, custom GPTs, Zapier & Make', summary: 'Go from asking AI questions to having it do repeat work for you.', topics: ['Your own assistant that remembers your instructions', 'AI agents that carry out tasks, and when to trust them', 'Your first Zapier or Make automation'], advanced: true },
     { n: 7, title: 'Capstone & Graduation', tools: 'Your project', summary: 'Show what you built and get feedback.', topics: ['Professional: present a working AI workflow', 'VIP: present an AI plan for your business', 'Instructor and peer feedback'], advanced: true }
   ];
@@ -535,6 +535,7 @@
     Number((/session\s*0?([1-7])\b/i.exec(assignment.title || '') || [])[1] || 0);
 
   const sessionIncluded = (n) => currentAccessLevel !== 'STARTER' || n <= 4;
+  const sessionTitle = (session) => (currentAccessLevel === 'VIP' && session.vipTitle) || session.title;
 
   const sessionState = (n) => {
     const entry = { session: `Session ${n}`, title: '' };
@@ -559,7 +560,7 @@
       button.type = 'button';
       const number = createElement('span', 'session-row-num', String(session.n).padStart(2, '0'));
       const body = createElement('span', 'session-row-body');
-      body.append(createElement('strong', '', session.title), createElement('small', '', session.tools));
+      body.append(createElement('strong', '', sessionTitle(session)), createElement('small', '', session.tools));
       const slot = timetableFor(session.n);
       if (slot && slot.date) body.append(createElement('small', 'session-row-date', `${slot.date}${slot.classTime ? ' · ' + slot.classTime : ''}`));
       const status = createElement('span', `session-row-status status-${state}`, nextOpen && nextOpen.n === session.n ? 'Up next' : stateLabel[state]);
@@ -585,7 +586,7 @@
     const state = included ? sessionState(n) : 'locked';
     header.append(
       createElement('span', 'section-tag', `Session ${n} · ${session.tools}`),
-      createElement('h2', '', session.title),
+      createElement('h2', '', sessionTitle(session)),
       createElement('p', '', session.summary),
       createElement('span', `session-row-status status-${state}`, stateLabel[state])
     );
@@ -708,7 +709,7 @@
 
     const nextSession = SESSIONS.find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
     let target = nextSession ? `session-${nextSession.n}` : 'portalSessionList';
-    let label = nextSession ? `Continue: Session ${nextSession.n}, ${nextSession.title}` : 'Review Your Sessions';
+    let label = nextSession ? `Continue: Session ${nextSession.n}, ${sessionTitle(nextSession)}` : 'Review Your Sessions';
     if (currentOnboardingRatio<1) { target='portalOnboarding'; label='Finish Your Setup Checklist'; }
     else if (currentSubmissions.some((item)=>String(item.status).toUpperCase()==='REVISION REQUESTED')) { target='portalSubmissions'; label='Review Instructor Feedback'; }
     else if ((progress.approvedAssignments||0)<(progress.requiredAssignments||0)) { target='portalAssignments'; label='Continue with Assignments'; }
