@@ -72,6 +72,7 @@
 
   const selectPackageFromUrl = () => {
     const requested = new URLSearchParams(window.location.search).get('package');
+    if (requested === 'teens') { window.location.replace('teens-register.html'); return; }
     const aliases = { vip: 'vip-seat', starter: 'starter', professional: 'professional' };
     const value = aliases[requested] || requested;
     if (value && config.packages[value]) packageSelect.value = value;
@@ -254,7 +255,12 @@
       : '<span>Submit Registration</span><span aria-hidden="true">→</span>';
   };
 
-  packageSelect.addEventListener('change', updatePackageSummary);
+  // The Teens Scholarship has its own parent form.
+  const goToTeens = () => { window.location.href = 'teens-register.html'; };
+  packageSelect.addEventListener('change', () => {
+    if (packageSelect.value === 'teens') { goToTeens(); return; }
+    updatePackageSummary();
+  });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();

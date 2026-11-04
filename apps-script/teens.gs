@@ -65,6 +65,8 @@ function registerTeen_(parameters) {
   var consent = String(parameters.consent).toLowerCase() === 'true';
   var aiConsent = String(parameters.aiConsent).toLowerCase() === 'true';
   var photoConsent = String(parameters.photoConsent).toLowerCase() === 'true';
+  var avatar = clean_(parameters.childAvatar, 10).toLowerCase();
+  if (avatar !== 'girl' && avatar !== 'boy') avatar = '';
   var packageInfo = PACKAGES.TEENS;
 
   if (parentName.length < 2) throw new Error('A parent or guardian name is required.');
@@ -97,7 +99,7 @@ function registerTeen_(parameters) {
     // Never lose a paid sign-up: late or over-capacity rows are kept as WAITLIST.
     status = open && countTeensPlacesTaken_() < TEENS_PROGRAM.CAPACITY ? 'PENDING' : 'WAITLIST';
     var notes = 'TEENS | Parent: ' + parentName + ' | DOB: ' + childDob + ' (age ' + age + ') | Class: ' + schoolClass +
-      ' | AI consent: yes | Photo consent: ' + (photoConsent ? 'yes' : 'no');
+      ' | AI consent: yes | Photo consent: ' + (photoConsent ? 'yes' : 'no') + (avatar ? ' | Avatar: ' + avatar : '');
 
     sheet.appendRow([
       new Date(),
@@ -165,6 +167,12 @@ function teensAgeOn_(dob, onDate) {
 function teensParentName_(row) {
   var match = /Parent:\s*([^|]+)/.exec(String(row[COL.ADMIN_NOTES - 1] || ''));
   return match ? clean_(match[1], 100) : 'Parent';
+}
+
+/** Portal avatar ('girl' or 'boy') stored in Admin Notes as "Avatar: girl". Edit the note to change it. */
+function teensAvatar_(row) {
+  var match = /Avatar:\s*(girl|boy)/i.exec(String(row[COL.ADMIN_NOTES - 1] || ''));
+  return match ? match[1].toLowerCase() : '';
 }
 
 function sendTeensReceivedEmail_(parentName, childName, email, registrationId, status) {

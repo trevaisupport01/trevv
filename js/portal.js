@@ -981,6 +981,18 @@
     currentSubmissions = response.submissions || [];
     currentAssignments = Array.isArray(response.assignments) ? response.assignments : [];
     document.getElementById('studentName').textContent = response.student.firstName || response.student.name || 'Student';
+    // Teens Scholarship: girl or boy avatar chosen by the parent at sign-up.
+    const avatar = document.getElementById('studentAvatar');
+    if (avatar) {
+      const choice = ['girl', 'boy'].includes(response.student.avatar) ? response.student.avatar : '';
+      avatar.hidden = !choice;
+      if (choice) {
+        avatar.src = `assets/images/avatar-teen-${choice}.png`;
+        avatar.alt = `${response.student.firstName || 'Student'}'s avatar`;
+      } else {
+        avatar.removeAttribute('src');
+      }
+    }
     document.getElementById('studentRegistrationId').textContent = response.student.registrationId || '—';
     document.getElementById('studentPackage').textContent = response.package.label || response.package.key || 'Enrolled Package';
     document.getElementById('studentPackageBadge').textContent = response.package.accessLevel || response.package.key || 'STUDENT';

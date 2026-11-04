@@ -788,7 +788,9 @@ function verifyAccessCode_(rawCode) {
     student: {
       name: fullName,
       firstName: fullName.split(/\s+/)[0],
-      registrationId: registrationId
+      registrationId: registrationId,
+      // Teens Scholarship students get a girl or boy avatar in the portal.
+      avatar: packageKey === 'TEENS' && typeof teensAvatar_ === 'function' ? teensAvatar_(row) : ''
     },
     package: {
       key: packageKey,

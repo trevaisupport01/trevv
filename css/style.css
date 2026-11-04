@@ -4241,3 +4241,104 @@ body.nav-open { overflow: hidden; }
   border-radius: var(--radius-full); background: var(--dark); color: var(--white); font-size: .88rem; text-decoration: none; line-height: 1.35; }
 .teens-announce strong { color: var(--accent); }
 .teens-announce:hover { background: #222; }
+.teens-avatar-label { display: block; font-weight: 600; margin-bottom: .5rem; }
+.teens-avatar-choice { display: flex; gap: .9rem; flex-wrap: wrap; }
+.teens-avatar-option { display: flex; flex-direction: column; align-items: center; gap: .4rem; padding: .75rem 1rem .6rem; cursor: pointer;
+  border: 2px solid var(--border); border-radius: var(--radius-md); background: var(--background); min-width: 120px; transition: border-color .15s, box-shadow .15s; }
+.teens-avatar-option input { position: absolute; opacity: 0; pointer-events: none; }
+.teens-avatar-option img { width: 88px; height: 88px; border-radius: 50%; }
+.teens-avatar-option span { font-weight: 700; }
+.teens-avatar-option:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(242,183,5,.3); }
+.teens-avatar-option:has(input:focus-visible) { outline: 2px solid var(--dark); outline-offset: 2px; }
+/* Portal avatar (Teens students) */
+.portal-avatar { width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.portal-hello { display: flex; align-items: center; gap: 1rem; }
+
+/* ---------------------------------------------------------------------------
+   Teens Scholarship section: Overview, Classes, For parents, Register pages
+   ------------------------------------------------------------------------- */
+.teens-subnav { position: sticky; top: var(--header-height); z-index: 40; background: var(--dark); border-bottom: 1px solid #222; margin-top: var(--header-height); }
+.teens-subnav-inner { display: flex; align-items: center; gap: 1.5rem; min-height: 54px; overflow-x: auto; scrollbar-width: none; }
+.teens-subnav-inner::-webkit-scrollbar { display: none; }
+.teens-subnav-title { color: var(--accent); font-weight: 800; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.teens-subnav-links { display: flex; gap: .35rem; }
+.teens-subnav-link { color: #d4d4d4; text-decoration: none; font-weight: 600; font-size: .95rem; padding: .45rem .85rem; border-radius: var(--radius-full); white-space: nowrap; }
+.teens-subnav-link:hover { color: #fff; background: #1d1d1d; }
+.teens-subnav-link[aria-current="page"] { color: #111; background: var(--accent); }
+.teens-subnav + .registration-hero { padding-top: 4rem; }
+.teens-hero-small { padding-bottom: 3rem; }
+.teens-hero-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 2rem; align-items: center; }
+.teens-hero-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+.teens-hero-art { position: relative; height: 440px; }
+.teens-hero-glow { position: absolute; inset: 8% 6% 0; border-radius: 50%; background: radial-gradient(circle, rgba(242,183,5,.45), rgba(242,183,5,0) 66%); }
+.teens-hero-art img { position: absolute; bottom: 0; height: auto; filter: drop-shadow(0 20px 30px rgba(0,0,0,.18)); }
+.teens-hero-boy { right: 0; width: 62%; }
+.teens-hero-girl { left: 0; width: 68%; }
+.teens-skills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
+.teens-skill { padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.teens-skill-emo { font-size: 2rem; line-height: 1; }
+.teens-skill h3 { margin: .8rem 0 .5rem; font-size: 1.15rem; }
+.teens-skill p { color: var(--text-muted); line-height: 1.6; font-size: .97rem; }
+.teens-steps { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; counter-reset: none; }
+.teens-steps li { padding: 1.5rem; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.teens-steps li span { display: inline-flex; width: 2.2rem; height: 2.2rem; border-radius: 50%; align-items: center; justify-content: center; background: var(--accent); color: #111; font-weight: 800; }
+.teens-steps li strong { display: block; margin: .8rem 0 .4rem; font-size: 1.05rem; }
+.teens-steps li p { color: var(--text-muted); line-height: 1.55; font-size: .95rem; }
+.teens-cta-band { display: flex; justify-content: space-between; align-items: center; gap: 2rem; flex-wrap: wrap; padding: 2.5rem; border-radius: var(--radius-lg);
+  color: #fff; background: radial-gradient(500px 260px at 100% 0%, rgba(242,183,5,.35), rgba(242,183,5,0) 70%), var(--dark); }
+.teens-cta-band h2 { color: #fff; font-size: clamp(1.5rem, 3vw, 2.1rem); margin-bottom: .4rem; }
+.teens-cta-band p { color: #cfcfcf; }
+.teens-cta-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.btn-outline-light { border: 1.5px solid rgba(255,255,255,.7); color: #fff; background: transparent; }
+.btn-outline-light:hover { background: rgba(255,255,255,.1); color: #fff; }
+.teens-class-list { display: grid; gap: 1.25rem; }
+.teens-class-detail { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.5rem; padding: 1.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.teens-class-side { display: flex; flex-direction: column; gap: .6rem; }
+.teens-class-detail h2 { font-size: 1.4rem; margin-bottom: .5rem; }
+.teens-class-detail p { color: var(--text-muted); line-height: 1.6; }
+.teens-class-detail ul { margin: .8rem 0; padding-left: 1.1rem; display: grid; gap: .35rem; }
+.teens-task { margin-top: .6rem; padding: .7rem 1rem; border-radius: var(--radius-sm); background: #fff7d6; color: #3a2e00 !important; }
+.teens-cert { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.5rem; align-items: center; }
+.teens-cert p { color: var(--text-muted); line-height: 1.65; margin-bottom: 1rem; }
+.teens-cert-img { width: 100%; height: auto; border-radius: var(--radius-md); box-shadow: 0 20px 50px rgba(0,0,0,.15); }
+.teens-need { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3rem; }
+.teens-check-list { list-style: none; padding: 0; display: grid; gap: .7rem; }
+.teens-check-list li { position: relative; padding-left: 2rem; line-height: 1.55; }
+.teens-check-list li::before { content: '✓'; position: absolute; left: 0; top: .1rem; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--accent); color: #111; font-size: .75rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.teens-schedule { width: 100%; border-collapse: collapse; background: var(--background); border-radius: var(--radius-md); overflow: hidden; }
+.teens-schedule th, .teens-schedule td { text-align: left; padding: .8rem 1rem; border-bottom: 1px solid var(--border); }
+.teens-schedule th { background: var(--dark); color: #fff; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; }
+.teens-faq { display: grid; gap: .75rem; margin-bottom: 1.5rem; }
+.teens-faq details { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.25rem; background: var(--background); }
+.teens-faq summary { cursor: pointer; font-weight: 700; }
+.teens-faq details p { margin-top: .6rem; color: var(--text-muted); line-height: 1.6; }
+.teens-faq-more { margin-bottom: 1.25rem; }
+.register-teens-note { display: flex; gap: .8rem; align-items: center; margin-top: 1.5rem; padding: .9rem 1.1rem; border-radius: var(--radius-md); background: var(--dark); color: #fff; max-width: 720px; text-decoration: none; }
+.register-teens-note img { width: 44px; height: 44px; border-radius: 50%; }
+.register-teens-note strong { color: var(--accent); }
+@media (max-width: 1024px) {
+  .teens-hero-grid, .teens-cert, .teens-need { grid-template-columns: 1fr; }
+  .teens-hero-art { height: 340px; max-width: 460px; }
+  .teens-skills, .teens-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .teens-skills, .teens-steps { grid-template-columns: 1fr; }
+  .teens-class-detail { grid-template-columns: 1fr; gap: .8rem; }
+  .teens-class-side { flex-direction: row; align-items: center; }
+  .teens-hero-art { height: 270px; }
+  .teens-cta-band { padding: 1.75rem; }
+}
+.teens-cta-band .btn-primary { background: var(--accent); color: #111; border-color: var(--accent); }
+.teens-cta-band .btn-primary:hover { background: #ffd23f; color: #111; }
+.registration-form .teens-avatar-option { display: flex !important; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0; }
+
+/* Keep the main menu on one line now that it also has Teens. */
+.nav-link, .nav-cta .btn { white-space: nowrap; }
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .nav-links { gap: 1.15rem; }
+  .nav-link { font-size: .9rem; }
+}
+@media (min-width: 1025px) and (max-width: 1180px) {
+  .nav-links { gap: .8rem; }
+  .nav-link { font-size: .85rem; }
+}

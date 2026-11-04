@@ -4,13 +4,11 @@
 
   const config = window.TREV_CONFIG;
   const form = document.getElementById('teensForm');
-  if (!config || !config.teens || !form) return;
+  if (!config || !config.teens) return;
 
   const teens = config.teens;
   const message = document.getElementById('teensMessage');
   const submitButton = document.getElementById('teensSubmit');
-  const placesBox = document.getElementById('teensPlaces');
-  const placesText = document.getElementById('teensPlacesText');
   const success = document.getElementById('teensSuccess');
   let requestPending = false;
   let lastAttempt = null;
@@ -29,13 +27,18 @@
     }
   };
 
+  // Every Teens page can show the places counter (one or more [data-teens-places] badges).
   const showPlaces = (left, open) => {
     placesLeft = left;
-    placesBox.classList.toggle('is-full', !open);
-    placesBox.classList.toggle('is-low', open && left <= 5);
-    placesText.textContent = !open
+    const label = !open
       ? (left <= 0 ? 'All 20 places are taken' : 'Registration has closed')
       : `${left} of ${teens.capacity} places left · first come, first served`;
+    document.querySelectorAll('[data-teens-places]').forEach((box) => {
+      box.classList.toggle('is-full', !open);
+      box.classList.toggle('is-low', open && left <= 5);
+      const text = box.querySelector('[data-teens-places-text]');
+      if (text) text.textContent = label;
+    });
   };
 
   // JSONP: the Apps Script web app does not send CORS headers.
@@ -59,13 +62,16 @@
     if (Date.now() > closesAt) { showPlaces(0, false); setState(false, 'closed'); return; }
     const data = await loadPlaces();
     if (!data || data.ok !== true) {
-      placesText.textContent = `Only ${teens.capacity} places · first come, first served`;
+      document.querySelectorAll('[data-teens-places-text]').forEach((el) => { el.textContent = `Only ${teens.capacity} places · first come, first served`; });
       setState(true);
       return;
     }
     showPlaces(Number(data.left) || 0, data.open === true);
     setState(data.open === true, Number(data.left) > 0 ? 'closed' : 'full');
   };
+
+  refreshPlaces();
+  if (!form) return; // The rest is only for teens-register.html.
 
   // Bank details from config, with copy button.
   const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
@@ -110,6 +116,7 @@
       return '';
     },
     schoolClass: (v) => (v ? '' : 'Choose your child\'s school class.'),
+    childAvatar: () => (form.querySelector('input[name="childAvatar"]:checked') ? '' : 'Choose Girl or Boy for your child\'s portal avatar.'),
     paymentReference: (v) => (text(v, 120).length >= 3 ? '' : 'Enter the transfer reference or the name on the sending account.'),
     aiConsent: (_, el) => (el.checked ? '' : 'Tick this box to give permission for your child to take part.'),
     consent: (_, el) => (el.checked ? '' : 'Tick this box to confirm your details and accept the policies.')
@@ -144,6 +151,11 @@
     el.addEventListener(el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
       if (el.getAttribute('aria-invalid') === 'true') check(name);
     });
+  });
+
+  // Either avatar button clears the "choose an avatar" error.
+  form.querySelectorAll('input[name="childAvatar"]').forEach((radio) => {
+    radio.addEventListener('change', () => check('childAvatar'));
   });
 
   const showMessage = (msg, type = 'error') => {
@@ -191,6 +203,7 @@
       childName: text(document.getElementById('childName').value, 100),
       childDob: document.getElementById('childDob').value,
       schoolClass: document.getElementById('schoolClass').value,
+      childAvatar: (form.querySelector('input[name="childAvatar"]:checked') || {}).value || '',
       country: 'Nigeria',
       packageKey: teens.key,
       paymentReference: text(document.getElementById('paymentReference').value, 120),
@@ -230,6 +243,4 @@
       setLoading(false);
     }
   });
-
-  refreshPlaces();
 })();
