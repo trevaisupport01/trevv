@@ -511,7 +511,7 @@
   /* ---------------- Sessions ---------------- */
 
   // The course outline. Starter covers 1–4; Professional and VIP cover all 7.
-  const SESSIONS = [
+  const ADULT_SESSIONS = [
     { n: 1, title: 'Your AI Toolkit', tools: 'ChatGPT & Gemini', summary: 'Get set up on the two most-used AI assistants and do your first real tasks with them.', topics: ['Free ChatGPT and Gemini accounts on phone and laptop', 'What AI is good at, what it gets wrong, and why you always check', 'First tasks: rewrite a message, summarise a document, plan your week'] },
     { n: 2, title: 'Prompts That Work', tools: 'ChatGPT & Claude', summary: 'Get the answer you actually want, the first time or after a quick fix.', topics: ['The 4-part prompt: role, task, context, format', 'Giving examples and improving drafts step by step', 'Saving your best prompts as reusable templates'] },
     { n: 3, title: 'AI for Everyday Work', vipTitle: 'AI for Business Communication', tools: 'ChatGPT, Gemini, Claude & Grok', summary: 'Use AI on the writing and planning you already do.', topics: ['Emails, CVs, cover letters, reports and posts', 'Changing tone for a boss, client or international audience', 'Which tool for which job: your one-page cheat sheet'] },
@@ -520,6 +520,15 @@
     { n: 6, title: 'AI Agents & Automation', tools: 'Gems, custom GPTs, Zapier & Make', summary: 'Go from asking AI questions to having it do repeat work for you.', topics: ['Your own assistant that remembers your instructions', 'AI agents that carry out tasks, and when to trust them', 'Your first Zapier or Make automation'], advanced: true },
     { n: 7, title: 'Capstone & Graduation', tools: 'Your project', summary: 'Show what you built and get feedback.', topics: ['Professional: present a working AI workflow', 'VIP: present an AI plan for your business', 'Instructor and peer feedback'], advanced: true }
   ];
+
+  // Teens Scholarship (ages 13–16): four classes over two weekends.
+  const TEEN_SESSIONS = [
+    { n: 1, title: 'Meet AI Safely', tools: 'Gemini & ChatGPT', summary: 'What AI is, what it gets wrong, and how to use it safely with a parent.', topics: ['What AI can and cannot do', 'Safe accounts and what never to share', 'The 4-part prompt and checking answers'] },
+    { n: 2, title: 'AI as Your Study Buddy', tools: 'Gemini & ChatGPT', summary: 'Use AI to understand topics and revise, without cheating.', topics: ['Explaining a topic three ways', 'Quizzes, flashcards and a study plan', 'Rules for learning with AI at school'] },
+    { n: 3, title: 'Create with AI', tools: 'Gemini, ChatGPT & Canva', summary: 'Make stories, images and a simple presentation.', topics: ['Stories and ideas with AI', 'Images for a poster or slide', 'Copyright, real faces and being honest about AI'] },
+    { n: 4, title: 'Research & Showcase', tools: 'Your project', summary: 'Check facts with sources, then present your project.', topics: ['Finding and checking facts', 'Presenting your project in 2–3 minutes', 'Certificates for everyone who completes'] }
+  ];
+  const sessionsFor = () => (currentAccessLevel === 'TEENS' ? TEEN_SESSIONS : ADULT_SESSIONS);
 
   const sessionListContainer = document.getElementById('portalSessionList');
   const sessionDetailContainer = document.getElementById('portalSessionDetail');
@@ -534,7 +543,7 @@
     sessionNumberOf(assignment.id) || sessionNumberOf(String(assignment.id || '').replace(/^SESSION[-_]/i, 'Session ')) ||
     Number((/session\s*0?([1-7])\b/i.exec(assignment.title || '') || [])[1] || 0);
 
-  const sessionIncluded = (n) => currentAccessLevel !== 'STARTER' || n <= 4;
+  const sessionIncluded = (n) => (currentAccessLevel !== 'STARTER' && currentAccessLevel !== 'TEENS') || n <= 4;
   const sessionTitle = (session) => (currentAccessLevel === 'VIP' && session.vipTitle) || session.title;
 
   const sessionState = (n) => {
@@ -552,8 +561,8 @@
   const renderSessions = () => {
     if (!sessionListContainer) return;
     sessionListContainer.replaceChildren();
-    const nextOpen = SESSIONS.find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
-    SESSIONS.forEach((session) => {
+    const nextOpen = sessionsFor().find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
+    sessionsFor().forEach((session) => {
       const included = sessionIncluded(session.n);
       const state = included ? sessionState(session.n) : 'locked';
       const button = createElement('button', `session-row session-${state}${nextOpen && nextOpen.n === session.n ? ' session-next' : ''}`);
@@ -571,7 +580,7 @@
   };
 
   const openSession = (n, options = {}) => {
-    const session = SESSIONS.find((s) => s.n === n);
+    const session = sessionsFor().find((s) => s.n === n);
     if (!session || !sessionDetailContainer) return;
     sessionListContainer.hidden = true;
     sessionDetailContainer.hidden = false;
@@ -648,7 +657,7 @@
       prev.addEventListener('click', () => showView('sessions', { session: n - 1 }));
       nav.appendChild(prev);
     }
-    if (n < SESSIONS.length) {
+    if (n < sessionsFor().length) {
       const next = createElement('button', 'btn btn-outline btn-sm', `Session ${n + 1} →`);
       next.type = 'button';
       next.addEventListener('click', () => showView('sessions', { session: n + 1 }));
@@ -677,8 +686,8 @@
 
   const updateDashboardProgress = () => {
     const progress=currentProgressData||{};
-    const requiredSessions=currentAccessLevel==='STARTER'?4:7;
-    const certificateRequiredSessions=currentAccessLevel==='STARTER'?4:5;
+    const requiredSessions=currentAccessLevel==='STARTER'||currentAccessLevel==='TEENS'?4:7;
+    const certificateRequiredSessions=currentAccessLevel==='STARTER'?4:currentAccessLevel==='TEENS'?3:5;
     const completionTracked=progress.certificatePolicyVersion===2;
     const completedSessions=completionTracked?Math.max(0,Math.min(requiredSessions,Number(progress.lessonsCompleted)||0)):0;
     const total=Math.min(100,Math.round((completedSessions/certificateRequiredSessions)*100));
@@ -707,7 +716,7 @@
       certificateDetail.textContent=`Attend and complete ${certificateRequiredSessions} of ${requiredSessions} classes`;
     }
 
-    const nextSession = SESSIONS.find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
+    const nextSession = sessionsFor().find((s) => sessionIncluded(s.n) && sessionState(s.n) === 'upcoming');
     let target = nextSession ? `session-${nextSession.n}` : 'portalSessionList';
     let label = nextSession ? `Continue: Session ${nextSession.n}, ${sessionTitle(nextSession)}` : 'Review Your Sessions';
     if (currentOnboardingRatio<1) { target='portalOnboarding'; label='Finish Your Setup Checklist'; }
@@ -945,7 +954,8 @@
   };
 
   const renderPromptLibrary = async (accessLevel) => {
-    const tier=accessLevel==='STARTER'?'starter':accessLevel==='PROFESSIONAL'?'professional':'vip';
+    // Teens use the Starter prompt library.
+    const tier=accessLevel==='STARTER'||accessLevel==='TEENS'?'starter':accessLevel==='PROFESSIONAL'?'professional':'vip';
     const pdfs={starter:'trev-ai-starter-prompt-library.pdf',professional:'trev-ai-professional-prompt-library.pdf',vip:'trev-ai-vip-prompt-library.pdf'};
     promptPdfDownload.href=`assets/prompt-libraries/${pdfs[tier]}`;
     vipTemplatesDownload.hidden=tier!=='vip';

@@ -20,6 +20,12 @@ window.TREV_CONFIG = Object.freeze({
     accountName: 'DANIEL GBENGA OLUTIMEHIN',
     accountNumber: '6109478874'
   }),
+  teens: Object.freeze({
+    key: 'TEENS', label: 'TREV AI Teens Scholarship', price: '₦2,500', fullPrice: '₦10,000',
+    capacity: 20, minAge: 13, maxAge: 16,
+    closesAt: '2026-11-11T23:59:59+01:00',
+    firstClass: '2026-11-14T16:00:00+01:00'
+  }),
   packages: Object.freeze({
     starter: Object.freeze({
       key: 'STARTER', label: 'Starter Package', accessLevel: 'STARTER',

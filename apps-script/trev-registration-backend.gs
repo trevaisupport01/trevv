@@ -154,7 +154,9 @@ var CONTENT_UPDATE_HEADERS = [
   'Scheduled Date',
   'Status',
   'Recipient Count',
-  'Sent At'
+  'Sent At',
+  'Button Label',
+  'Update ID'
 ];
 
 var SUBMISSION_HEADERS = [
@@ -249,6 +251,11 @@ var PACKAGES = {
   VIP_TEAM: {
     label: 'VIP Executive — Team of up to 5', earlyPrice: '₦225,000', normalPrice: '₦250,000',
     accessLevel: 'VIP', codePrefix: 'VIP'
+  },
+  // Ages 13–16. Registration, places and parent emails live in Teens.gs.
+  TEENS: {
+    label: 'TREV AI Teens Scholarship', earlyPrice: '₦2,500', normalPrice: '₦2,500',
+    accessLevel: 'TEENS', codePrefix: 'TEN'
   }
 };
 
@@ -299,7 +306,7 @@ function addAccessMonths_(date, months) {
 function accessWindow_(row, packageInfo, now) {
   var approved = approvalDate_(row[COL.APPROVED_AT - 1], now);
   if (!approved) return { valid:false, status:'APPROVAL_REVIEW' };
-  var expires = addAccessMonths_(approved, packageInfo.accessLevel === 'STARTER' ? 3 : 24);
+  var expires = addAccessMonths_(approved, packageInfo.accessLevel === 'STARTER' || packageInfo.accessLevel === 'TEENS' ? 3 : 24);
   return now.getTime() < expires.getTime()
     ? { valid:true, expiresAt:expires.toISOString() }
     : { valid:false, status:'EXPIRED' };
@@ -340,7 +347,13 @@ function onOpen() {
     .createMenu('TREV Updates')
     .addItem('Install Daily Email Trigger', 'installContentUpdateTrigger')
     .addItem('Send Due Updates Now', 'processContentUpdates')
+    .addSeparator()
+    .addItem('Send Selected Update to Me (Test)', 'sendSelectedUpdateTest')
+    .addItem('Import Waitlist Form Responses', 'importWaitlistResponses')
     .addToUi();
+
+  // Waitlist.gs adds its own menu when it is installed in this project.
+  if (typeof addWaitlistMenu_ === 'function') addWaitlistMenu_();
 }
 
 
@@ -495,6 +508,15 @@ function doGet(e) {
   var parameters = (e && e.parameter) || {};
   var action = clean_(parameters.action, 30).toLowerCase();
 
+  // Waitlist.gs handles unsubscribe links in older waitlist campaign emails.
+  if (action === 'unsubscribe' && typeof handleWaitlistGet_ === 'function') {
+    return handleWaitlistGet_(e);
+  }
+  // Newsletter.gs handles the unsubscribe link in every newsletter.
+  if (action === 'newsletteroff') {
+    return handleNewsletterUnsubscribe_(parameters);
+  }
+
   // Assignment uploads use an Apps Script HTML page so file Blobs can be
   // transferred securely with google.script.run while remaining embedded in
   // the TREV portal rather than redirecting to a secondary website.
@@ -512,6 +534,8 @@ function doGet(e) {
       payload = verifyWithRateLimit_(parameters.code, parameters.clientId);
     } else if (action === 'datarequest') {
       payload = submitDataRequest_(parameters.code, parameters.note);
+    } else if (action === 'teensplaces') {
+      payload = teensPlaces_();
     } else if (action === 'verifycertificate') {
       payload = verifyCertificate_(parameters.certificateId);
     } else {
@@ -531,6 +555,8 @@ function registerStudent_(parameters) {
     // Honeypot: act successful so automated spam does not learn anything.
     return { ok: true };
   }
+  // Teens Scholarship sign-ups have their own fields, deadline and 20-place limit.
+  if (clean_(parameters.packageKey, 30).toUpperCase() === 'TEENS') return registerTeen_(parameters);
 
   var fullName = clean_(parameters.fullName, 100);
   var email = clean_(parameters.email, 120).toLowerCase();
@@ -639,7 +665,8 @@ function approveSelectedRegistration() {
     ? existingCodes
     : generateUniqueAccessCodes_(packageInfo.codePrefix, packageKey === 'VIP_TEAM' ? 5 : 1);
   var codeCell = codes.join(' | ');
-  var message = buildApprovalWhatsAppMessage_(row[COL.FULL_NAME - 1], packageInfo, codes);
+  var isTeens = packageKey === 'TEENS';
+  var message = isTeens ? buildTeensWhatsAppMessage_(row, codes) : buildApprovalWhatsAppMessage_(row[COL.FULL_NAME - 1], packageInfo, codes);
   var whatsappUrl = buildWhatsAppUrl_(row[COL.WHATSAPP - 1], message);
 
   context.sheet.getRange(context.rowNumber, COL.STATUS).setValue('APPROVED').setBackground('#dcfce7').setFontWeight('bold');
@@ -650,7 +677,7 @@ function approveSelectedRegistration() {
   setShortWhatsAppLink_(context.sheet.getRange(context.rowNumber, COL.WHATSAPP_LINK), whatsappUrl);
   SpreadsheetApp.flush();
 
-  var emailed = sendApprovalEmail_(
+  var emailed = isTeens ? sendTeensApprovalEmail_(row, codes) : sendApprovalEmail_(
     row[COL.FULL_NAME - 1],
     row[COL.EMAIL - 1],
     row[COL.REGISTRATION_ID - 1],
@@ -681,7 +708,7 @@ function resendSelectedAccessEmail() {
     return;
   }
 
-  var sent = sendApprovalEmail_(
+  var sent = String(row[COL.PACKAGE_KEY - 1]).toUpperCase() === 'TEENS' ? sendTeensApprovalEmail_(row, codes) : sendApprovalEmail_(
     row[COL.FULL_NAME - 1],
     row[COL.EMAIL - 1],
     row[COL.REGISTRATION_ID - 1],
@@ -706,7 +733,7 @@ function rebuildSelectedWhatsAppLink() {
     return;
   }
 
-  var message = buildApprovalWhatsAppMessage_(row[COL.FULL_NAME - 1], packageInfo, codes);
+  var message = String(row[COL.PACKAGE_KEY - 1]).toUpperCase() === 'TEENS' ? buildTeensWhatsAppMessage_(row, codes) : buildApprovalWhatsAppMessage_(row[COL.FULL_NAME - 1], packageInfo, codes);
   var whatsappUrl = buildWhatsAppUrl_(row[COL.WHATSAPP - 1], message);
   setShortWhatsAppLink_(context.sheet.getRange(context.rowNumber, COL.WHATSAPP_LINK), whatsappUrl);
   ui.alert('Column P now displays “Send code on WhatsApp” instead of the long URL.');
@@ -730,7 +757,7 @@ function suspendSelectedAccess() {
 
 function verifyAccessCode_(rawCode) {
   var code = clean_(rawCode, 40).toUpperCase().replace(/\s+/g, '');
-  if (!/^TREV-(STA|PRO|VIP)-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+  if (!/^TREV-(STA|PRO|VIP|TEN)-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
     return { valid: false, status: 'INVALID' };
   }
 
@@ -1099,7 +1126,7 @@ function publishCourseMaterial(formObject) {
   var sheet = getSpreadsheet_().getSheetByName(TREV.RESOURCES_SHEET);
   if (!sheet) throw new Error('Resources sheet is missing. Run setupTrevSystem.');
   var current = rowNumber >= 2 ? sheet.getRange(rowNumber,1,1,RESOURCE_HEADERS.length).getValues()[0] : null;
-  if (['ALL','STARTER','PROFESSIONAL','VIP'].indexOf(level) === -1) throw new Error('Choose a valid access level.');
+  if (['ALL','STARTER','PROFESSIONAL','VIP','TEENS'].indexOf(level) === -1) throw new Error('Choose a valid access level.');
   if (!category || !title) throw new Error('Category and title are required.');
   if (['PDF','SLIDES','TEMPLATE','WORKBOOK','VIDEO','LINK'].indexOf(materialType) === -1) throw new Error('Choose a valid material type.');
 
@@ -1203,7 +1230,7 @@ function materialManagerHtml_(initial) {
   return '<!doctype html><html><head><base target="_top"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' +
     'body{font-family:Arial,sans-serif;margin:0;padding:18px;color:#171717}h2{margin:0 0 5px}p{color:#666;font-size:13px;line-height:1.5}form{display:grid;gap:12px;margin-top:18px}label{font-size:12px;font-weight:700}input,select,textarea{width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #ccc;border-radius:7px;font:inherit}textarea{resize:vertical}small{color:#777;font-size:11px}button{border:0;border-radius:999px;background:#111;color:#fff;padding:12px;font-weight:800;cursor:pointer}button:disabled{opacity:.6}.check{display:flex;align-items:center;gap:8px}.check input{width:auto;margin:0}#status{font-size:12px;padding:10px;border-radius:7px}#status:empty{display:none}.ok{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}</style></head><body>' +
     '<h2>Upload Course Material</h2><p>Publish PDFs, slides, templates, workbooks, Drive videos, or external resources without redeploying the website.</p>' +
-    '<form onsubmit="send(event,this)"><input type="hidden" name="rowNumber"><label>Package<select name="accessLevel" required><option value="ALL">All students</option><option value="STARTER">Starter only</option><option value="PROFESSIONAL">Professional only</option><option value="VIP">VIP only</option></select></label>' +
+    '<form onsubmit="send(event,this)"><input type="hidden" name="rowNumber"><label>Package<select name="accessLevel" required><option value="ALL">All students</option><option value="STARTER">Starter only</option><option value="PROFESSIONAL">Professional only</option><option value="VIP">VIP only</option><option value="TEENS">Teens only</option></select></label>' +
     '<label>Category<input name="category" placeholder="Session Slides" required></label><label>Title<input name="title" required></label><label>Description<textarea name="description" rows="3"></textarea></label>' +
     '<label>Material type<select name="materialType" id="type" onchange="toggle()"><option value="PDF">PDF / Document</option><option value="SLIDES">PowerPoint / Slides</option><option value="TEMPLATE">Template</option><option value="WORKBOOK">Workbook</option><option value="VIDEO">Google Drive Video</option><option value="LINK">External Link</option></select></label>' +
     '<label id="fileRow">Upload file<input type="file" name="materialFile" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.zip"><small>Maximum 20MB. Upload larger files directly to Drive.</small></label>' +
@@ -1425,7 +1452,7 @@ function formatResourcesSheet_(sheet) {
   sheet.getRange(2, 9, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
-      .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
+      .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP', 'TEENS'], true)
       .setAllowInvalid(false)
       .build()
   );
@@ -1449,7 +1476,7 @@ function formatAssignmentsSheet_(sheet) {
   sheet.getRange(2, 10, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation()
-      .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP'], true)
+      .requireValueInList(['ALL', 'STARTER', 'PROFESSIONAL', 'VIP', 'TEENS'], true)
       .setAllowInvalid(false)
       .build()
   );
@@ -1534,13 +1561,7 @@ function formatAttendanceSheet_(sheet) {
   sheet.getRange(1,9).setNote('Instructor-reviewed class completion. Mark only after the learner has attended and completed this numbered core session. Existing attendance is preserved; completion is never inferred from a portal login or an assignment upload.');
 }
 
-function formatContentUpdatesSheet_(sheet) {
-  styleAdminHeader_(sheet, CONTENT_UPDATE_HEADERS.length, '#f2b705', '#111111');
-  sheet.setColumnWidth(1, 150); sheet.setColumnWidth(2, 260); sheet.setColumnWidth(3, 520);
-  sheet.setColumnWidth(4, 300); sheet.setColumnWidth(5, 150); sheet.setColumnWidth(6, 120);
-  sheet.getRange(2,1,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['PROFESSIONAL','VIP','BOTH'],true).build());
-  sheet.getRange(2,6,Math.max(sheet.getMaxRows()-1,1),1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['DRAFT','SCHEDULED','SENT','CANCELLED'],true).build());
-}
+// formatContentUpdatesSheet_ lives in Newsletter.gs.
 
 function styleAdminHeader_(sheet, length, background, color) {
   sheet.setFrozenRows(1);
@@ -1706,7 +1727,7 @@ function getAttendanceCompletionColumn_(sheet) {
 }
 
 function getCommunityInfo_(accessLevel) {
-  var prefix = accessLevel === 'STARTER' ? 'STARTER' : accessLevel === 'PROFESSIONAL' ? 'PROFESSIONAL' : 'VIP';
+  var prefix = accessLevel === 'STARTER' ? 'STARTER' : accessLevel === 'PROFESSIONAL' ? 'PROFESSIONAL' : accessLevel === 'TEENS' ? 'TEENS' : 'VIP';
   return {
     groupName: settingValue_(prefix + '_GROUP_NAME', ''),
     inviteUrl: safeUrl_(settingValue_(prefix + '_GROUP_LINK', '')),
@@ -1719,8 +1740,9 @@ function getCommunityInfo_(accessLevel) {
 
 
 function getStudentProgress_(registrationId, accessLevel) {
-  var requiredSessions = accessLevel === 'STARTER' ? 4 : 7;
-  var certificateRequiredSessions = accessLevel === 'STARTER' ? 4 : 5;
+  var requiredSessions = accessLevel === 'STARTER' || accessLevel === 'TEENS' ? 4 : 7;
+  // Teens: attend 3 of 4 classes (plus the final project, checked by the instructor).
+  var certificateRequiredSessions = accessLevel === 'STARTER' ? 4 : accessLevel === 'TEENS' ? 3 : 5;
   var attendanceSheet = getSpreadsheet_().getSheetByName(TREV.ATTENDANCE_SHEET);
   var attendedLabels = [];
   var completedLabels = [];
@@ -1796,7 +1818,13 @@ function getStaticPortalData_(accessLevel) {
     onboarding: getChecklistForLevel_(accessLevel),
     communityGuidelines: getCommunityGuidelines_(),
     community: getCommunityInfo_(accessLevel),
-    cohort: {
+    cohort: accessLevel === 'TEENS' ? {
+      startDate: '14 November 2026',
+      enrollmentEnds: '11 November 2026',
+      classTime: 'Saturdays and Sundays, 4:00 – 5:30 PM (WAT), on Google Meet',
+      duration: '4 classes over two weekends: 14, 15, 21 and 22 November',
+      certificateRelease: 'After the final class on 22 November'
+    } : {
       startDate: cohortSettingValue_('COHORT_START_DATE', '9 November 2026'),
       enrollmentEnds: '6 November 2026',
       classTime: cohortSettingValue_('CLASS_TIME', 'To be announced'),
@@ -1812,7 +1840,8 @@ function clearPortalCache_() {
   CacheService.getScriptCache().removeAll([
     'portal-static-v4-STARTER',
     'portal-static-v4-PROFESSIONAL',
-    'portal-static-v4-VIP'
+    'portal-static-v4-VIP',
+    'portal-static-v4-TEENS'
   ]);
 }
 
@@ -1823,69 +1852,11 @@ function refreshPortalCache() {
 }
 
 
-function installContentUpdateTrigger() {
-  requireAdmin_();
-  ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    if (['processContentUpdates','processContentUpdates_'].indexOf(trigger.getHandlerFunction()) !== -1) ScriptApp.deleteTrigger(trigger);
-  });
-  // Private handlers cannot be invoked through a student's google.script.run bridge.
-  ScriptApp.newTrigger('processContentUpdates_').timeBased().everyDays(1).atHour(10).create();
-  SpreadsheetApp.getUi().alert('Daily content-update trigger installed for approximately 10:00 AM WAT.');
-}
-
-function processContentUpdates() {
-  requireAdmin_();
-  return processContentUpdates_();
-}
-
-/** Installed triggers run this private handler; manual sends use the guarded wrapper. */
-function processContentUpdates_() {
-  var ss=getSpreadsheet_();
-  var sheet=ss.getSheetByName(TREV.CONTENT_UPDATES_SHEET);
-  if (!sheet || sheet.getLastRow()<2) return;
-  var updates=getDataRows_(sheet,CONTENT_UPDATE_HEADERS.length,2);
-  var now=new Date();
-  updates.forEach(function(row,index) {
-    var status=clean_(row[5],30).toUpperCase();
-    var scheduled=row[4] instanceof Date?row[4]:new Date(row[4]);
-    if (status!=='SCHEDULED'||isNaN(scheduled.getTime())||scheduled.getTime()>now.getTime()) return;
-    var recipients=getUpdateRecipients_(clean_(row[0],30).toUpperCase(),now);
-    var quota=MailApp.getRemainingDailyQuota();
-    if (recipients.length>quota) {
-      sheet.getRange(index+2,6).setNote('Not sent: '+recipients.length+' recipients exceed remaining Gmail quota of '+quota+'.');
-      return;
-    }
-    var subject=clean_(row[1],180); var content=cleanMultiline_(row[2],10000); var resource=safeUrl_(row[3]);
-    var sent=0;
-    recipients.forEach(function(student) {
-      var text='Hi '+firstName_(student.name)+',\n\n'+content+(resource?'\n\nNew resource: '+resource:'')+'\n\n— TREV AI Support';
-      var html=emailShell_(subject,'<p>Hi '+escapeHtml_(firstName_(student.name))+',</p><div style="white-space:pre-line;line-height:1.65">'+escapeHtml_(content)+'</div>'+(resource?'<p><a href="'+escapeHtml_(resource)+'" style="display:inline-block;background:#f2b705;color:#111;text-decoration:none;font-weight:800;padding:12px 20px;border-radius:999px">Open New Resource</a></p>':''));
-      if (sendMailSafely_(student.email,subject,text,html)) sent++;
-    });
-    sheet.getRange(index+2,6,1,3).setValues([['SENT',sent,new Date()]]);
-  });
-}
-
-function getUpdateRecipients_(audience,now) {
-  var rows=getDataRows_(getRegistrationsSheet_(),REG_HEADERS.length,COL.REGISTRATION_ID);
-  var seen={}; var result=[];
-  rows.forEach(function(row) {
-    if (clean_(row[COL.STATUS-1],30).toUpperCase()!=='APPROVED') return;
-    var key=clean_(row[COL.PACKAGE_KEY-1],30).toUpperCase();
-    var eligible=(audience==='BOTH'&&(key==='PROFESSIONAL'||key.indexOf('VIP_')===0))||(audience==='PROFESSIONAL'&&key==='PROFESSIONAL')||(audience==='VIP'&&key.indexOf('VIP_')===0);
-    if (!eligible) return;
-    var packageInfo=PACKAGES[key];
-    if (!packageInfo || !accessWindow_(row,packageInfo,now).valid) return;
-    var email=clean_(row[COL.EMAIL-1],120).toLowerCase();
-    if (!email||seen[email]) return;
-    seen[email]=true; result.push({email:email,name:clean_(row[COL.FULL_NAME-1],100)});
-  });
-  return result;
-}
+// installContentUpdateTrigger, processContentUpdates and getUpdateRecipients_ live in Newsletter.gs.
 
 function verifyCertificate_(rawId) {
   var certificateId = clean_(rawId, 60).toUpperCase();
-  if (!/^TREV-(STA|PRO|VIP)-2026-[0-9]{4,}$/.test(certificateId)) return { valid:false, status:'INVALID' };
+  if (!/^TREV-(STA|PRO|VIP|TEN)-2026-[0-9]{4,}$/.test(certificateId)) return { valid:false, status:'INVALID' };
   var sheet = getSpreadsheet_().getSheetByName(TREV.CERTIFICATES_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return { valid:false, status:'NOT FOUND' };
   var rowNumber = findExactRow_(sheet,1,certificateId);
@@ -1979,7 +1950,7 @@ function requestCodeResend_(rawEmail) {
  * ------------------------------------------------------------------------- */
 function submitDataRequest_(rawCode, rawNote) {
   var code = clean_(rawCode, 40).toUpperCase().replace(/\s+/g, '');
-  if (!/^TREV-(STA|PRO|VIP)-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) return { ok: false, status: 'INVALID' };
+  if (!/^TREV-(STA|PRO|VIP|TEN)-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) return { ok: false, status: 'INVALID' };
   if (isRateLimited_('datarequest:' + code, RATE_LIMITS.DATA_REQUEST_PER_CODE)) return { ok: false, status: 'RATE_LIMITED' };
 
   var registrations = getRegistrationsSheet_();

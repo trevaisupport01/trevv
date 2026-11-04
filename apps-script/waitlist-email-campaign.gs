@@ -25,7 +25,7 @@ var WAITLIST_CAMPAIGN_HEADERS = [
 var WAITLIST_SETTING_HEADERS = ['Key','Value','Notes'];
 var WAITLIST_CACHE = {};
 
-function onOpen() {
+function addWaitlistMenu_() {
   SpreadsheetApp.getUi().createMenu('TREV Waitlist Email')
     .addItem('Set Up / Repair Campaign', 'setupWaitlistEmailCampaign')
     .addItem('Install Email Triggers', 'installWaitlistEmailTriggers')
@@ -179,7 +179,7 @@ function syncRegisteredSubscribers() {
   } catch(error) { console.error('Registration sync failed: '+error); }
 }
 
-function doGet(e) {
+function handleWaitlistGet_(e) {
   var action=cleanWaitlist_(e&&e.parameter&&e.parameter.action,30).toLowerCase();
   if (action!=='unsubscribe') return HtmlService.createHtmlOutput('<h2>TREV AI Waitlist Email Service</h2>');
   var token=cleanWaitlist_(e.parameter.token,100);

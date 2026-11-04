@@ -36,7 +36,7 @@
   const verify = async (rawId) => {
     const certificateId = rawId.trim().toUpperCase().replace(/\s+/g, '');
     result.hidden = true;
-    if (!/^TREV-(STA|PRO|VIP)-2026-[0-9]{4,}$/.test(certificateId)) {
+    if (!/^TREV-(STA|PRO|VIP|TEN)-2026-[0-9]{4,}$/.test(certificateId)) {
       showMessage('Enter a complete certificate ID, for example TREV-PRO-2026-0001.');
       return;
     }
